@@ -125,7 +125,7 @@ func (t Delim) String() string {
 
 type Number struct {
 	Offset  int
-	Value   float32
+	Value   float64
 	Integer bool
 }
 

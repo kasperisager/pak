@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"strings"
+	"math"
 
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
@@ -169,11 +170,7 @@ func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 
 // See: https://drafts.csswg.org/css-syntax/#consume-numeric-token
 func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
-	offset, runes, value, integer, err := scanNumber(offset, runes)
-
-	if err != nil {
-		return offset, runes, tokens, err
-	}
+	offset, runes, value, integer := scanNumber(offset, runes)
 
 	t := token.Number{
 		Value:   value,
@@ -184,15 +181,24 @@ func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 }
 
 // See: https://drafts.csswg.org/css-syntax/#consume-number
-func scanNumber(offset int, runes []rune) (int, []rune, float32, bool, error) {
+func scanNumber(offset int, runes []rune) (int, []rune, float64, bool) {
+	value := 0.0
+	sign := 1.0
+
 	switch runes[0] {
-	case '+', '-':
+	case '+':
+		runes = runes[1:]
+		offset++
+
+	case '-':
+		sign = -1
 		runes = runes[1:]
 		offset++
 	}
 
 	for len(runes) > 0 {
 		if isDigit(runes[0]) {
+			value = 10*value + float64(runes[0] - '0')
 			runes = runes[1:]
 			offset++
 		} else {
@@ -200,21 +206,70 @@ func scanNumber(offset int, runes []rune) (int, []rune, float32, bool, error) {
 		}
 	}
 
-	if len(runes) > 1 && runes[0] == '.' && isDigit(runes[1]) {
-		runes = runes[2:]
-		offset += 2
+	if startsFraction(runes) {
+		offset, runes, value = scanFraction(offset + 1, runes[1:], value)
 
-		for len(runes) > 0 {
-			if isDigit(runes[0]) {
-				runes = runes[1:]
-				offset++
-			} else {
-				break
-			}
+		return offset, runes, sign * value, false
+	}
+
+	if startsExponent(runes) {
+		offset, runes, value = scanExponent(offset + 1, runes[1:], value)
+
+		return offset, runes, sign * value, false
+	}
+
+	return offset, runes, sign * value, true
+}
+
+func scanFraction(offset int, runes []rune, base float64) (int, []rune, float64) {
+	value := 0.0
+	digits := 0
+
+	for len(runes) > 0 {
+		if isDigit(runes[0]) {
+			value = 10*value + float64(runes[0] - '0')
+			digits++
+			runes = runes[1:]
+			offset++
+		} else {
+			break
 		}
 	}
 
-	return offset, runes, 0, false, nil
+	value = base + value / math.Pow10(digits)
+
+	if startsExponent(runes) {
+		return scanExponent(offset + 1, runes[1:], value)
+	}
+
+	return offset, runes, value
+}
+
+func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64) {
+	value := 0
+	sign := -1
+
+	switch runes[0] {
+	case '+':
+		runes = runes[1:]
+		offset++
+	case '-':
+		runes = runes[1:]
+		offset++
+		sign = 1
+	}
+
+	for len(runes) > 0 {
+		if isDigit(runes[0]) {
+			value = 10*value + int(runes[0] - '0')
+			runes = runes[1:]
+			offset++
+		} else {
+			break
+		}
+	}
+
+	return offset, runes, base / math.Pow10(sign * value)
 }
 
 // See: https://drafts.csswg.org/css-syntax/#consume-a-string-token

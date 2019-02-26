@@ -121,3 +121,19 @@ func startsNumber(runes []rune) bool {
 
 	return isDigit(runes[0])
 }
+
+func startsFraction(runes []rune) bool {
+	return len(runes) > 1 && runes[0] == '.' && isDigit(runes[1])
+}
+
+func startsExponent(runes []rune) bool {
+	if len(runes) > 1 && (runes[0] == 'E' || runes[0] == 'e') {
+		if runes[1] == '+' || runes[1] == '-' {
+			return len(runes) > 2 && isDigit(runes[2])
+		}
+
+		return isDigit(runes[1])
+	}
+
+	return false
+}

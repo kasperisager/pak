@@ -49,8 +49,10 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 		return scanString(offset, runes, tokens)
 
 	case '#':
-		if isNameStart(runes[1]) || startsEscape(runes[1:]) {
+		if isName(runes[1]) || startsEscape(runes[1:]) {
 			start := offset
+
+			id := startsIdentifier(runes[1:])
 
 			offset, runes, name, err := scanName(offset+1, runes[1:])
 
@@ -61,6 +63,7 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 			t := token.Hash{
 				Offset: start,
 				Value:  name,
+				Id:     id,
 			}
 
 			return offset, runes, append(tokens, t), nil

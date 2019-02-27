@@ -64,6 +64,11 @@ func isName(rune rune) bool {
 	return isNameStart(rune) || isDigit(rune) || rune == '-'
 }
 
+// See: https://infra.spec.whatwg.org/#surrogate
+func isSurrogate(rune rune) bool {
+	return isBetween(rune, 0xd800, 0xdfff)
+}
+
 func hexValue(rune rune) int {
 	if isDigit(rune) {
 		return int(rune) - '0'

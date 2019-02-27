@@ -77,6 +77,12 @@ func TestScan(t *testing.T) {
 			},
 		},
 		{
+			"@foo",
+			[]token.Token{
+				token.AtKeyword{Offset: 0, Value: "foo"},
+			},
+		},
+		{
 			"123",
 			[]token.Token{
 				token.Number{Offset: 0, Value: 123, Integer: true},
@@ -110,6 +116,30 @@ func TestScan(t *testing.T) {
 			"1.23e-2",
 			[]token.Token{
 				token.Number{Offset: 0, Value: 0.0123},
+			},
+		},
+		{
+			"123%",
+			[]token.Token{
+				token.Percentage{Offset: 0, Value: 123},
+			},
+		},
+		{
+			"123px",
+			[]token.Token{
+				token.Dimension{Offset: 0, Value: 123, Integer: true, Unit: "px"},
+			},
+		},
+		{
+			"1.23px",
+			[]token.Token{
+				token.Dimension{Offset: 0, Value: 1.23, Unit: "px"},
+			},
+		},
+		{
+			`\61\62\63`,
+			[]token.Token{
+				token.Ident{Offset: 0, Value: "abc"},
 			},
 		},
 	}

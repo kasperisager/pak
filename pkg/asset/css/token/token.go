@@ -139,7 +139,7 @@ func (t Number) String() string {
 
 type Percentage struct {
 	Offset int
-	Value  float32
+	Value  float64
 }
 
 func (t Percentage) VisitToken(v TokenVisitor) {
@@ -152,7 +152,7 @@ func (t Percentage) String() string {
 
 type Dimension struct {
 	Offset  int
-	Value   float32
+	Value   float64
 	Integer bool
 	Unit    string
 }
@@ -174,7 +174,7 @@ func (t Whitespace) VisitToken(v TokenVisitor) {
 }
 
 func (t Whitespace) String() string {
-	return "·"
+	return "-"
 }
 
 type Colon struct {

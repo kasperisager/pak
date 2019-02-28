@@ -8,6 +8,8 @@ import (
 )
 
 func Scan(runes []rune) (tokens []token.Token, err error) {
+	tokens = make([]token.Token, 0)
+
 	offset := 0
 
 	for len(runes) > 0 {
@@ -43,7 +45,12 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 			return scanIdent(offset, runes, tokens)
 		}
 
-		return offset, runes, tokens, nil
+		t := token.Delim{Offset: offset, Value: '\\'}
+
+		return offset+1, runes[1:], append(tokens, t), SyntaxError{
+			Offset: offset+1,
+			Message: "unexpected newline",
+		}
 
 	case '"', '\'':
 		return scanString(offset, runes, tokens)
@@ -321,26 +328,59 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 	var result strings.Builder
 
 	for len(runes) > 0 {
-		if isNewline(runes[0]) {
-			return offset, runes, tokens, nil
+		next := runes[0]
+
+		if isNewline(next) {
+			return offset, runes, tokens, SyntaxError{
+				Offset: offset,
+				Message: "unexpected newline",
+			}
 		}
 
-		if runes[0] == end {
+		runes = runes[1:]
+		offset++
+
+		switch next {
+		case end:
 			t := token.String{
 				Offset: start,
 				Value:  result.String(),
 			}
 
-			return offset + 1, runes[1:], append(tokens, t), nil
+			return offset, runes, append(tokens, t), nil
+
+		case '\\':
+			if len(runes) == 0 || isNewline(runes[1]) {
+				break
+			}
+
+			var (
+				code rune
+				err error
+			)
+
+			offset, runes, code, err = scanEscape(offset, runes)
+
+			if err != nil {
+				return offset, runes, tokens, err
+			}
+
+			result.WriteRune(code)
+
+		default:
+			result.WriteRune(next)
 		}
-
-		result.WriteRune(runes[0])
-
-		runes = runes[1:]
-		offset++
 	}
 
-	return offset, runes, tokens, nil
+	t := token.String{
+		Offset: start,
+		Value:  result.String(),
+	}
+
+	return offset, runes, append(tokens, t), SyntaxError{
+		Offset: offset,
+		Message: "unexpected end of file",
+	}
 }
 
 // See: https://drafts.csswg.org/css-syntax/#consume-a-name

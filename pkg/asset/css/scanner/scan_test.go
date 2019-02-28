@@ -10,8 +10,8 @@ import (
 
 func TestScan(t *testing.T) {
 	var tests = []struct {
-		input    string
-		expected []token.Token
+		input  string
+		tokens []token.Token
 	}{
 		{
 			"--foo",
@@ -148,6 +148,53 @@ func TestScan(t *testing.T) {
 		tokens, err := Scan([]rune(test.input))
 
 		assert.Nil(t, err)
-		assert.Equal(t, test.expected, tokens, test.input)
+		assert.Equal(t, test.tokens, tokens, test.input)
+	}
+}
+
+func TestScanError(t *testing.T) {
+	var tests = []struct {
+		input  string
+		tokens []token.Token
+		err    error
+	}{
+		{
+			"\"foo",
+			[]token.Token{
+				token.String{Offset: 0, Value: "foo"},
+			},
+			SyntaxError{Offset: 4, Message: "unexpected end of file"},
+		},
+		{
+			"'foo",
+			[]token.Token{
+				token.String{Offset: 0, Value: "foo"},
+			},
+			SyntaxError{Offset: 4, Message: "unexpected end of file"},
+		},
+		{
+			"\"foo\n",
+			[]token.Token{},
+			SyntaxError{Offset: 4, Message: "unexpected newline"},
+		},
+		{
+			"'foo\n",
+			[]token.Token{},
+			SyntaxError{Offset: 4, Message: "unexpected newline"},
+		},
+		{
+			"\\\n",
+			[]token.Token{
+				token.Delim{Offset: 0, Value: '\\'},
+			},
+			SyntaxError{Offset: 1, Message: "unexpected newline"},
+		},
+	}
+
+	for _, test := range tests {
+		tokens, err := Scan([]rune(test.input))
+
+		assert.Equal(t, test.err, err, test.input)
+		assert.Equal(t, test.tokens, tokens, test.input)
 	}
 }

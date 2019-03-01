@@ -64,6 +64,11 @@ func isName(rune rune) bool {
 	return isNameStart(rune) || isDigit(rune) || rune == '-'
 }
 
+// See: https://drafts.csswg.org/css-syntax/#non-printable-code-point
+func isNonPrintable(rune rune) bool {
+	return isBetween(rune, 0x0000, 0x0008) || rune == 0x000B || isBetween(rune, 0x000E, 0x001F) || rune == 0x007F
+}
+
 // See: https://infra.spec.whatwg.org/#surrogate
 func isSurrogate(rune rune) bool {
 	return isBetween(rune, 0xd800, 0xdfff)

@@ -59,13 +59,17 @@ func TestScan(t *testing.T) {
 		{
 			"url(\"foo\")",
 			[]token.Token{
-				token.Url{Offset: 0, Value: "foo"},
+				token.Function{Offset: 0, Value: "url"},
+				token.String{Offset: 4, Value: "foo"},
+				token.CloseParen{Offset: 9},
 			},
 		},
 		{
 			"url('foo')",
 			[]token.Token{
-				token.Url{Offset: 0, Value: "foo"},
+				token.Function{Offset: 0, Value: "url"},
+				token.String{Offset: 4, Value: "foo"},
+				token.CloseParen{Offset: 9},
 			},
 		},
 		{
@@ -74,6 +78,14 @@ func TestScan(t *testing.T) {
 				token.Function{Offset: 0, Value: "foo"},
 				token.Ident{Offset: 4, Value: "bar"},
 				token.CloseParen{Offset: 7},
+			},
+		},
+		{
+			"foo(\"bar\")",
+			[]token.Token{
+				token.Function{Offset: 0, Value: "foo"},
+				token.String{Offset: 4, Value: "bar"},
+				token.CloseParen{Offset: 9},
 			},
 		},
 		{
@@ -188,6 +200,18 @@ func TestScanError(t *testing.T) {
 				token.Delim{Offset: 0, Value: '\\'},
 			},
 			SyntaxError{Offset: 1, Message: "unexpected newline"},
+		},
+		{
+			"url(foo",
+			[]token.Token{
+				token.Url{Offset: 0, Value: "foo"},
+			},
+			SyntaxError{Offset: 7, Message: "unexpected end of file"},
+		},
+		{
+			"url(foo bar)",
+			[]token.Token{},
+			SyntaxError{Offset: 7, Message: "unexpected whitespace"},
 		},
 	}
 

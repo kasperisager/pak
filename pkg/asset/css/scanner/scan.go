@@ -47,8 +47,8 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 
 		t := token.Delim{Offset: offset, Value: '\\'}
 
-		return offset+1, runes[1:], append(tokens, t), SyntaxError{
-			Offset: offset+1,
+		return offset + 1, runes[1:], append(tokens, t), SyntaxError{
+			Offset:  offset + 1,
 			Message: "unexpected newline",
 		}
 
@@ -160,22 +160,18 @@ func scanWhitespace(offset int, runes []rune, tokens []token.Token) (int, []rune
 // See: https://drafts.csswg.org/css-syntax/#consume-comments
 func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	for len(runes) > 0 {
-		if runes[0] == '*' {
-			runes = runes[1:]
-			offset++
-
-			if len(runes) > 0 && runes[0] == '/' {
-				runes = runes[1:]
-				offset++
-				break
-			}
-		} else {
-			runes = runes[1:]
-			offset++
+		if len(runes) > 1 && runes[0] == '*' && runes[1] == '/' {
+			return offset + 2, runes[2:], tokens, nil
 		}
+
+		runes = runes[1:]
+		offset++
 	}
 
-	return offset, runes, tokens, nil
+	return offset, runes, tokens, SyntaxError{
+		Offset:  offset,
+		Message: "unexpected end of file",
+	}
 }
 
 // See: https://drafts.csswg.org/css-syntax/#consume-numeric-token
@@ -332,7 +328,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 
 		if isNewline(next) {
 			return offset, runes, tokens, SyntaxError{
-				Offset: offset,
+				Offset:  offset,
 				Message: "unexpected newline",
 			}
 		}
@@ -356,7 +352,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 
 			var (
 				code rune
-				err error
+				err  error
 			)
 
 			offset, runes, code, err = scanEscape(offset, runes)
@@ -378,7 +374,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 	}
 
 	return offset, runes, append(tokens, t), SyntaxError{
-		Offset: offset,
+		Offset:  offset,
 		Message: "unexpected end of file",
 	}
 }
@@ -478,7 +474,14 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 		offset++
 
 		if strings.EqualFold(name, "url") {
-			return scanUrl(offset, runes, tokens)
+			for len(runes) > 0 && isWhitespace(runes[0]) {
+				runes = runes[1:]
+				offset++
+			}
+
+			if len(runes) == 0 || (runes[0] != '"' && runes[0] != '\'') {
+				return scanUrl(offset, runes, tokens, start)
+			}
 		}
 
 		t = token.Function{
@@ -496,7 +499,7 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 }
 
 // See: https://drafts.csswg.org/css-syntax/#consume-url-token
-func scanUrl(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
+func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []rune, []token.Token, error) {
 	for len(runes) > 0 && isWhitespace(runes[0]) {
 		runes = runes[1:]
 		offset++
@@ -505,10 +508,46 @@ func scanUrl(offset int, runes []rune, tokens []token.Token) (int, []rune, []tok
 	var result strings.Builder
 
 	for len(runes) > 0 {
+		if isWhitespace(runes[0]) {
+			position := offset
+
+			for len(runes) > 0 && isWhitespace(runes[0]) {
+				runes = runes[1:]
+				offset++
+			}
+
+			t := token.Url{
+				Offset: start,
+				Value:  result.String(),
+			}
+
+			if len(runes) > 0 {
+				if runes[0] == ')' {
+					runes = runes[1:]
+					offset++
+
+					return offset, runes, append(tokens, t), nil
+				}
+
+				offset, runes = scanBadUrl(offset, runes)
+
+				return offset, runes, tokens, SyntaxError{
+					Offset:  position,
+					Message: "unexpected whitespace",
+				}
+			}
+
+			return offset, runes, append(tokens, t), SyntaxError{
+				Offset:  offset,
+				Message: "unexpected end of file",
+			}
+		}
+
 		switch runes[0] {
 		case ')':
 			t := token.Url{
-				Value: result.String(),
+				Offset: start,
+				Value:  result.String(),
 			}
 
 			return offset + 1, runes[1:], append(tokens, t), nil
@@ -557,5 +596,36 @@ func scanUrl(offset int, runes []rune, tokens []token.Token) (int, []rune, []tok
 		}
 	}
 
-	return offset, runes, tokens, nil
+	t := token.Url{
+		Offset: start,
+		Value:  result.String(),
+	}
+
+	return offset, runes, append(tokens, t), SyntaxError{
+		Offset:  offset,
+		Message: "unexpected end of file",
+	}
+}
+
+func scanBadUrl(offset int, runes []rune) (int, []rune) {
+	for len(runes) > 0 {
+		switch runes[0] {
+		case ')':
+			return offset + 1, runes[1:]
+		case '\\':
+			if len(runes) > 1 && runes[1] == ')' {
+				runes = runes[2:]
+				offset += 2
+			} else {
+				runes = runes[1:]
+				offset++
+			}
+
+		default:
+			runes = runes[1:]
+			offset++
+		}
+	}
+
+	return offset, runes
 }

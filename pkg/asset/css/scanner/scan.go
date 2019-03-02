@@ -8,7 +8,7 @@ import (
 )
 
 func Scan(runes []rune) (tokens []token.Token, err error) {
-	tokens = make([]token.Token, 0, len(runes) / 4)
+	tokens = make([]token.Token, 0, len(runes)/4)
 
 	offset := 0
 

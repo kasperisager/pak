@@ -10,8 +10,8 @@ import (
 func writeBlock(w io.Writer, block ast.Block) {
 	fmt.Fprintf(w, "{")
 
-	for _, preserved := range block.Value {
-		writePreserved(w, preserved)
+	for _, token := range block.Value {
+		writeToken(w, token)
 	}
 
 	fmt.Fprintf(w, "}")

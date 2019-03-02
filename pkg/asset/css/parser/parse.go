@@ -54,6 +54,8 @@ func parseAtRule(tokens []token.Token, name string) ([]token.Token, ast.AtRule, 
 	for len(tokens) > 0 {
 		switch tokens[0].(type) {
 		case token.Semicolon:
+			rule.Prelude = token.TrimWhitespace(rule.Prelude)
+
 			return tokens[1:], rule, nil
 
 		case token.OpenCurly:
@@ -69,6 +71,7 @@ func parseAtRule(tokens []token.Token, name string) ([]token.Token, ast.AtRule, 
 			}
 
 			rule.Value = &block
+			rule.Prelude = token.TrimWhitespace(rule.Prelude)
 
 			return tokens, rule, nil
 
@@ -77,6 +80,8 @@ func parseAtRule(tokens []token.Token, name string) ([]token.Token, ast.AtRule, 
 			tokens = tokens[1:]
 		}
 	}
+
+	rule.Prelude = token.TrimWhitespace(rule.Prelude)
 
 	return tokens, rule, nil
 }
@@ -99,6 +104,7 @@ func parseQualifiedRule(tokens []token.Token) ([]token.Token, ast.QualifiedRule,
 			}
 
 			rule.Value = block
+			rule.Prelude = token.TrimWhitespace(rule.Prelude)
 
 			return tokens, rule, nil
 
@@ -107,6 +113,8 @@ func parseQualifiedRule(tokens []token.Token) ([]token.Token, ast.QualifiedRule,
 			tokens = tokens[1:]
 		}
 	}
+
+	rule.Prelude = token.TrimWhitespace(rule.Prelude)
 
 	return tokens, rule, nil
 }
@@ -118,8 +126,9 @@ func parseBlock(tokens []token.Token) ([]token.Token, ast.Block, error) {
 	for len(tokens) > end {
 		switch tokens[end].(type) {
 		case token.CloseCurly:
-			block.Value = tokens[0:end]
-			return tokens[end:], block, nil
+			block.Value = token.TrimWhitespace(tokens[0:end])
+
+			return tokens[end+1:], block, nil
 
 		default:
 			end++

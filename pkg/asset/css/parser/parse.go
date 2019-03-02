@@ -39,19 +39,17 @@ func parseStyleSheet(tokens []token.Token) ([]token.Token, ast.StyleSheet, error
 }
 
 func parseRule(tokens []token.Token) ([]token.Token, ast.Rule, error) {
-	switch tokens[0].(type) {
+	switch token := tokens[0].(type) {
 	case token.AtKeyword:
-		return parseAtRule(tokens)
+		return parseAtRule(tokens[1:], token.Value)
 
 	default:
 		return parseQualifiedRule(tokens)
 	}
 }
 
-func parseAtRule(tokens []token.Token) ([]token.Token, ast.AtRule, error) {
-	rule := ast.AtRule{Name: tokens[0].(token.AtKeyword).Value}
-
-	tokens = tokens[1:]
+func parseAtRule(tokens []token.Token, name string) ([]token.Token, ast.AtRule, error) {
+	rule := ast.AtRule{Name: name}
 
 	for len(tokens) > 0 {
 		switch tokens[0].(type) {
@@ -75,18 +73,8 @@ func parseAtRule(tokens []token.Token) ([]token.Token, ast.AtRule, error) {
 			return tokens, rule, nil
 
 		default:
-			var (
-				preserved ast.Preserved
-				err       error
-			)
-
-			tokens, preserved, err = parsePreserved(tokens)
-
-			if err != nil {
-				return tokens, rule, err
-			}
-
-			rule.Prelude = append(rule.Prelude, preserved)
+			rule.Prelude = append(rule.Prelude, tokens[0])
+			tokens = tokens[1:]
 		}
 	}
 
@@ -115,18 +103,8 @@ func parseQualifiedRule(tokens []token.Token) ([]token.Token, ast.QualifiedRule,
 			return tokens, rule, nil
 
 		default:
-			var (
-				preserved ast.Preserved
-				err       error
-			)
-
-			tokens, preserved, err = parsePreserved(tokens)
-
-			if err != nil {
-				return tokens, rule, err
-			}
-
-			rule.Prelude = append(rule.Prelude, preserved)
+			rule.Prelude = append(rule.Prelude, tokens[0])
+			tokens = tokens[1:]
 		}
 	}
 
@@ -135,81 +113,18 @@ func parseQualifiedRule(tokens []token.Token) ([]token.Token, ast.QualifiedRule,
 
 func parseBlock(tokens []token.Token) ([]token.Token, ast.Block, error) {
 	block := ast.Block{}
+	end := 0
 
-	for len(tokens) > 0 {
-		switch tokens[0].(type) {
+	for len(tokens) > end {
+		switch tokens[end].(type) {
 		case token.CloseCurly:
-			return tokens[1:], block, nil
+			block.Value = tokens[0:end]
+			return tokens[end:], block, nil
 
 		default:
-			var (
-				preserved ast.Preserved
-				err       error
-			)
-
-			tokens, preserved, err = parsePreserved(tokens)
-
-			if err != nil {
-				return tokens, block, err
-			}
-
-			block.Value = append(block.Value, preserved)
+			end++
 		}
 	}
 
-	return tokens, block, nil
-}
-
-func parsePreserved(tokens []token.Token) ([]token.Token, ast.Preserved, error) {
-	switch token := tokens[0].(type) {
-	case token.Ident:
-		return tokens[1:], ast.Ident{Ident: token}, nil
-
-	case token.AtKeyword:
-		return tokens[1:], ast.AtKeyword{AtKeyword: token}, nil
-
-	case token.Hash:
-		return tokens[1:], ast.Hash{Hash: token}, nil
-
-	case token.String:
-		return tokens[1:], ast.String{String: token}, nil
-
-	case token.Url:
-		return tokens[1:], ast.Url{Url: token}, nil
-
-	case token.Delim:
-		return tokens[1:], ast.Delim{Delim: token}, nil
-
-	case token.Number:
-		return tokens[1:], ast.Number{Number: token}, nil
-
-	case token.Percentage:
-		return tokens[1:], ast.Percentage{Percentage: token}, nil
-
-	case token.Dimension:
-		return tokens[1:], ast.Dimension{Dimension: token}, nil
-
-	case token.Whitespace:
-		return tokens[1:], ast.Whitespace{Whitespace: token}, nil
-
-	case token.Colon:
-		return tokens[1:], ast.Colon{Colon: token}, nil
-
-	case token.Semicolon:
-		return tokens[1:], ast.Semicolon{Semicolon: token}, nil
-
-	case token.Comma:
-		return tokens[1:], ast.Comma{Comma: token}, nil
-
-	case token.CloseSquare:
-		return tokens[1:], ast.CloseSquare{CloseSquare: token}, nil
-
-	case token.CloseParen:
-		return tokens[1:], ast.CloseParen{CloseParen: token}, nil
-
-	case token.CloseCurly:
-		return tokens[1:], ast.CloseCurly{CloseCurly: token}, nil
-	}
-
-	return tokens, nil, nil
+	return tokens[end:], block, nil
 }

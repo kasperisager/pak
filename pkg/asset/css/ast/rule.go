@@ -1,6 +1,11 @@
 package ast
 
+import (
+	"github.com/kasperisager/pak/pkg/asset/css/token"
+)
+
 type Rule interface {
+	VisitNode(NodeVisitor)
 	VisitRule(RuleVisitor)
 }
 
@@ -11,7 +16,7 @@ type RuleVisitor struct {
 
 type AtRule struct {
 	Name    string
-	Prelude []Preserved
+	Prelude []token.Token
 	Value   *Block
 }
 
@@ -24,7 +29,7 @@ func (r AtRule) VisitRule(v RuleVisitor) {
 }
 
 type QualifiedRule struct {
-	Prelude []Preserved
+	Prelude []token.Token
 	Value   Block
 }
 

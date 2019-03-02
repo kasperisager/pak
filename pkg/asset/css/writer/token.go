@@ -3,6 +3,7 @@ package writer
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
@@ -28,21 +29,13 @@ func writeToken(w io.Writer, t token.Token) {
 		fmt.Fprintf(w, "url(%s)", t.Value)
 
 	case token.Number:
-		if t.Integer {
-			fmt.Fprintf(w, "%d", int(t.Value))
-		} else {
-			fmt.Fprintf(w, "%g", t.Value)
-		}
+		fmt.Fprintf(w, "%s", strconv.FormatFloat(t.Value, 'f', -1, 64))
 
 	case token.Percentage:
-		fmt.Fprintf(w, "%f%%", t.Value)
+		fmt.Fprintf(w, "%s%%", strconv.FormatFloat(t.Value, 'f', -1, 64))
 
 	case token.Dimension:
-		if t.Integer {
-			fmt.Fprintf(w, "%d%s", int(t.Value), t.Unit)
-		} else {
-			fmt.Fprintf(w, "%g%s", t.Value, t.Unit)
-		}
+		fmt.Fprintf(w, "%s%s", strconv.FormatFloat(t.Value, 'f', -1, 64), t.Unit)
 
 	case token.Whitespace:
 		fmt.Fprintf(w, " ")

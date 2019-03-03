@@ -5,21 +5,11 @@ import (
 )
 
 type (
-	Node interface {
-		VisitNode(NodeVisitor)
-	}
-
-	NodeVisitor struct {
-		StyleSheet func(StyleSheet)
-		Rule       func(Rule)
-	}
-
 	StyleSheet struct {
 		Rules []Rule
 	}
 
 	Rule interface {
-		Node
 		VisitRule(RuleVisitor)
 	}
 
@@ -34,9 +24,20 @@ type (
 		Value   *Block
 	}
 
+	ImportRule struct {
+		AtRule
+		Url string
+	}
+
 	QualifiedRule struct {
 		Prelude []token.Token
 		Value   Block
+	}
+
+	StyleRule struct {
+		QualifiedRule
+		Selector     Selector
+		Declarations []Declaration
 	}
 
 	Block struct {
@@ -44,15 +45,69 @@ type (
 	}
 
 	Declaration struct {
+		Name      string
+		Value     []token.Token
+		Important bool
+	}
+
+	Selector interface {
+		VisitSelector(SelectorVisitor)
+	}
+
+	SelectorVisitor struct {
+		IdSelector        func(IdSelector)
+		ClassSelector     func(ClassSelector)
+		AttributeSelector func(AttributeSelector)
+		TypeSelector      func(TypeSelector)
+		PseudoSelector    func(PseudoSelector)
+		CompoundSelector  func(CompoundSelector)
+		RelativeSelector  func(RelativeSelector)
+	}
+
+	IdSelector struct {
+		Name string
+	}
+
+	ClassSelector struct {
+		Name string
+	}
+
+	AttributeMatcher int
+
+	AttributeModifier int
+
+	AttributeSelector struct {
+		Name      string
+		Namespace *string
+		Value     *string
+		Matcher   AttributeMatcher
+		Modifier  AttributeModifier
+	}
+
+	TypeSelector struct {
+		Name      string
+		Namespace *string
+	}
+
+	PseudoSelector struct {
 		Name  string
 		Value []token.Token
 	}
+
+	CompoundSelector struct {
+		Left  Selector
+		Right Selector
+	}
+
+	SelectorCombinator int
+
+	RelativeSelector struct {
+		Combinator SelectorCombinator
+		Left       Selector
+		Right      Selector
+	}
 )
 
-func (s StyleSheet) VisitNode(v NodeVisitor) { v.StyleSheet(s) }
-
-func (r AtRule) VisitNode(v NodeVisitor) { v.Rule(r) }
 func (r AtRule) VisitRule(v RuleVisitor) { v.AtRule(r) }
 
-func (r QualifiedRule) VisitNode(v NodeVisitor) { v.Rule(r) }
 func (r QualifiedRule) VisitRule(v RuleVisitor) { v.QualifiedRule(r) }

@@ -19,7 +19,7 @@ type (
 	}
 
 	Rule interface {
-		VisitNode(NodeVisitor)
+		Node
 		VisitRule(RuleVisitor)
 	}
 

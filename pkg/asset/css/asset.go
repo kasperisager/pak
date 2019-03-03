@@ -3,9 +3,9 @@ package css
 import (
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
-	"github.com/kasperisager/pak/pkg/asset/css/optimizer"
 	"github.com/kasperisager/pak/pkg/asset/css/parser"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
+	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
 
 func Asset(path string, contents string) (asset.Asset, error) {
@@ -21,12 +21,7 @@ func Asset(path string, contents string) (asset.Asset, error) {
 		return nil, err
 	}
 
-	asset := cssAsset{
-		path,
-		optimizer.Optimize(styleSheet),
-	}
-
-	return asset, nil
+	return cssAsset{path, styleSheet}, nil
 }
 
 type cssAsset struct {
@@ -38,9 +33,6 @@ func (a cssAsset) Path() string {
 	return a.path
 }
 
-func (a cssAsset) Rename(path string) {
-}
-
 func (a cssAsset) References() []asset.Reference {
 	references := []asset.Reference{}
 
@@ -50,11 +42,11 @@ func (a cssAsset) References() []asset.Reference {
 			switch rule.Name {
 			case "import":
 				if len(rule.Prelude) > 0 {
-					switch value := rule.Prelude[0].(type) {
-					case ast.String:
-						references = append(references, asset.Reference{Path: value.Value})
-					case ast.Url:
-						references = append(references, asset.Reference{Path: value.Value})
+					switch t := rule.Prelude[0].(type) {
+					case token.String:
+						references = append(references, asset.Reference{Path: t.Value})
+					case token.Url:
+						references = append(references, asset.Reference{Path: t.Value})
 					}
 				}
 

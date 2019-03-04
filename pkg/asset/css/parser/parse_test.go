@@ -47,9 +47,58 @@ func TestParse(t *testing.T) {
 					ast.AtRule{
 						Name: "foo",
 						Prelude: []token.Token{
-							token.Whitespace{Offset: 4},
 							token.Ident{Offset: 5, Value: "bar"},
 						},
+					},
+				},
+			},
+		},
+		{
+			`@import "foo"`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.ImportRule{
+						AtRule: ast.AtRule{
+							Name: "import",
+							Prelude: []token.Token{
+								token.String{Offset: 8, Value: "foo"},
+							},
+						},
+						Url: "foo",
+					},
+				},
+			},
+		},
+		{
+			`@import url(foo)`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.ImportRule{
+						AtRule: ast.AtRule{
+							Name: "import",
+							Prelude: []token.Token{
+								token.Url{Offset: 8, Value: "foo"},
+							},
+						},
+						Url: "foo",
+					},
+				},
+			},
+		},
+		{
+			`@import url("foo")`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.ImportRule{
+						AtRule: ast.AtRule{
+							Name: "import",
+							Prelude: []token.Token{
+								token.Function{Offset: 8, Value: "url"},
+								token.String{Offset: 12, Value: "foo"},
+								token.CloseParen{Offset: 17},
+							},
+						},
+						Url: "foo",
 					},
 				},
 			},

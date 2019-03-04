@@ -50,6 +50,11 @@ type (
 		Important bool
 	}
 
+	Function struct {
+		Name  string
+		Value []token.Token
+	}
+
 	Selector interface {
 		VisitSelector(SelectorVisitor)
 	}

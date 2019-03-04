@@ -6,7 +6,6 @@ import (
 )
 
 type SyntaxError struct {
-	Token   token.Token
 	Message string
 }
 
@@ -50,7 +49,20 @@ func parseStyleSheet(tokens []token.Token) ([]token.Token, ast.StyleSheet, error
 func parseRule(tokens []token.Token) ([]token.Token, ast.Rule, error) {
 	switch token := tokens[0].(type) {
 	case token.AtKeyword:
-		return parseAtRule(tokens[1:], token.Value)
+		tokens, atRule, err := parseAtRule(tokens[1:], token.Value)
+
+		if err != nil {
+			return tokens, atRule, err
+		}
+
+		var rule ast.Rule = atRule
+
+		switch atRule.Name {
+		case "import":
+			rule, err = parseImportRule(atRule)
+		}
+
+		return tokens, rule, nil
 
 	default:
 		return parseQualifiedRule(tokens)
@@ -93,6 +105,70 @@ func parseAtRule(tokens []token.Token, name string) ([]token.Token, ast.AtRule, 
 	rule.Prelude = token.TrimWhitespace(rule.Prelude)
 
 	return tokens, rule, nil
+}
+
+func parseImportRule(atRule ast.AtRule) (ast.ImportRule, error) {
+	rule := ast.ImportRule{AtRule: atRule}
+
+	if atRule.Value != nil {
+		return rule, SyntaxError{
+			Message: "unexpected block in @import rule",
+		}
+	}
+
+	tokens := atRule.Prelude
+
+	if len(tokens) == 0 {
+		return rule, SyntaxError{
+			Message: "expected url in @import rule",
+		}
+	}
+
+	switch t := tokens[0].(type) {
+	case token.Url:
+		rule.Url = t.Value
+		tokens = tokens[1:]
+
+	case token.String:
+		rule.Url = t.Value
+		tokens = tokens[1:]
+
+	case token.Function:
+		var (
+			function ast.Function
+			err error
+		)
+
+		tokens, function, err = parseFunction(tokens[1:], t.Value)
+
+		if err != nil {
+			return rule, err
+		}
+
+		if len(function.Value) != 1 {
+			return rule, SyntaxError{
+				Message: "expected url in @import rule",
+			}
+		}
+
+		switch t := function.Value[0].(type) {
+		case token.String:
+			rule.Url = t.Value
+
+		default:
+			return rule, SyntaxError{
+				Message: "expected url in @import rule",
+			}
+		}
+	}
+
+	if len(tokens) > 0 {
+		return rule, SyntaxError{
+			Message: "unexpected token",
+		}
+	}
+
+	return rule, nil
 }
 
 func parseQualifiedRule(tokens []token.Token) ([]token.Token, ast.QualifiedRule, error) {
@@ -144,5 +220,27 @@ func parseBlock(tokens []token.Token) ([]token.Token, ast.Block, error) {
 		}
 	}
 
-	return tokens[end:], block, nil
+	return tokens[end:], block, SyntaxError{
+		Message: "unexpected end of file",
+	}
+}
+
+func parseFunction(tokens []token.Token, name string) ([]token.Token, ast.Function, error) {
+	function := ast.Function{Name: name}
+	end := 0
+
+	for len(tokens) > end {
+		switch tokens[end].(type) {
+		case token.CloseParen:
+			function.Value = token.TrimWhitespace(tokens[0:end])
+
+			return tokens[end+1:], function, nil
+		default:
+			end++
+		}
+	}
+
+	return tokens[end:], function, SyntaxError{
+		Message: "unexpected end of file",
+	}
 }

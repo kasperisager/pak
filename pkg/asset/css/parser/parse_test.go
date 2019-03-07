@@ -7,7 +7,6 @@ import (
 
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
-	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
 
 func TestParse(t *testing.T) {
@@ -16,39 +15,116 @@ func TestParse(t *testing.T) {
 		styleSheet ast.StyleSheet
 	}{
 		{
-			".foo",
+			".foo{}",
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.QualifiedRule{
-						Prelude: []token.Token{
-							token.Delim{Offset: 0, Value: '.'},
-							token.Ident{Offset: 1, Value: "foo"},
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.ClassSelector{Name: "foo"},
 						},
+						Declarations: []ast.Declaration{},
 					},
 				},
 			},
 		},
 		{
-			"#foo",
+			"#foo{}",
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.QualifiedRule{
-						Prelude: []token.Token{
-							token.Hash{Offset: 0, Value: "foo", Id: true},
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.IdSelector{Name: "foo"},
 						},
+						Declarations: []ast.Declaration{},
 					},
 				},
 			},
 		},
 		{
-			"@foo bar",
+			"#foo,.bar{}",
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.AtRule{
-						Name: "foo",
-						Prelude: []token.Token{
-							token.Ident{Offset: 5, Value: "bar"},
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.IdSelector{Name: "foo"},
+							ast.ClassSelector{Name: "bar"},
 						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"#foo.bar{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.CompoundSelector{
+								Left: ast.IdSelector{Name: "foo"},
+								Right: ast.ClassSelector{Name: "bar"},
+							},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"#foo.bar.baz{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.CompoundSelector{
+								Left: ast.CompoundSelector{
+									Left: ast.IdSelector{Name: "foo"},
+									Right: ast.ClassSelector{Name: "bar"},
+								},
+								Right: ast.ClassSelector{Name: "baz"},
+							},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"#foo.bar>.baz{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.RelativeSelector{
+								Combinator: ast.DirectDescendant,
+								Left: ast.CompoundSelector{
+									Left: ast.IdSelector{Name: "foo"},
+									Right: ast.ClassSelector{Name: "bar"},
+								},
+								Right: ast.ClassSelector{Name: "baz"},
+							},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"#foo.bar .baz{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.RelativeSelector{
+								Combinator: ast.Descendant,
+								Left: ast.CompoundSelector{
+									Left: ast.IdSelector{Name: "foo"},
+									Right: ast.ClassSelector{Name: "bar"},
+								},
+								Right: ast.ClassSelector{Name: "baz"},
+							},
+						},
+						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -57,15 +133,7 @@ func TestParse(t *testing.T) {
 			`@import "foo"`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{
-						AtRule: ast.AtRule{
-							Name: "import",
-							Prelude: []token.Token{
-								token.String{Offset: 8, Value: "foo"},
-							},
-						},
-						Url: "foo",
-					},
+					ast.ImportRule{Url: "foo"},
 				},
 			},
 		},
@@ -73,15 +141,7 @@ func TestParse(t *testing.T) {
 			`@import url(foo)`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{
-						AtRule: ast.AtRule{
-							Name: "import",
-							Prelude: []token.Token{
-								token.Url{Offset: 8, Value: "foo"},
-							},
-						},
-						Url: "foo",
-					},
+					ast.ImportRule{Url: "foo"},
 				},
 			},
 		},
@@ -89,17 +149,7 @@ func TestParse(t *testing.T) {
 			`@import url("foo")`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{
-						AtRule: ast.AtRule{
-							Name: "import",
-							Prelude: []token.Token{
-								token.Function{Offset: 8, Value: "url"},
-								token.String{Offset: 12, Value: "foo"},
-								token.CloseParen{Offset: 17},
-							},
-						},
-						Url: "foo",
-					},
+					ast.ImportRule{Url: "foo"},
 				},
 			},
 		},

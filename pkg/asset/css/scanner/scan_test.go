@@ -22,13 +22,8 @@ func TestScan(t *testing.T) {
 		{
 			"#foo",
 			[]token.Token{
-				token.Hash{Offset: 0, Value: "foo", Id: true},
-			},
-		},
-		{
-			"#123",
-			[]token.Token{
-				token.Hash{Offset: 0, Value: "123"},
+				token.Delim{Offset: 0, Value: '#'},
+				token.Ident{Offset: 1, Value: "foo"},
 			},
 		},
 		{

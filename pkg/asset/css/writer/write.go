@@ -21,40 +21,57 @@ func writeStyleSheet(w io.Writer, styleSheet ast.StyleSheet) {
 
 func writeRule(w io.Writer, rule ast.Rule) {
 	switch rule := rule.(type) {
-	case ast.AtRule:
-		fmt.Fprintf(w, "@%s", rule.Name)
+	case ast.ImportRule:
+		fmt.Fprintf(w, "@import \"%s\";", rule.Url)
 
-		if len(rule.Prelude) > 0 {
-			fmt.Fprintf(w, " ")
+	case ast.StyleRule:
+		for i, selector := range rule.Selectors {
+			writeSelector(w, selector)
+
+			if i != 0 {
+				fmt.Fprintf(w, ",")
+			}
 		}
 
-		for _, token := range rule.Prelude {
-			writeToken(w, token)
+		fmt.Fprintf(w, "{")
+
+		for i, declaration := range rule.Declarations {
+			writeDeclaration(w, declaration)
+
+			if i != 0 {
+				fmt.Fprintf(w, ";")
+			}
 		}
 
-		if rule.Value != nil {
-			writeBlock(w, *rule.Value)
-		} else {
-			fmt.Fprintf(w, ";")
-		}
-
-	case ast.QualifiedRule:
-		for _, token := range rule.Prelude {
-			writeToken(w, token)
-		}
-
-		writeBlock(w, rule.Value)
+		fmt.Fprintf(w, "}")
 	}
 }
 
-func writeBlock(w io.Writer, block ast.Block) {
-	fmt.Fprintf(w, "{")
+func writeSelector(w io.Writer, selector ast.Selector) {
+	switch selector := selector.(type) {
+	case ast.IdSelector:
+		fmt.Fprintf(w, "#%s", selector.Name)
 
-	for _, token := range block.Value {
-		writeToken(w, token)
+	case ast.ClassSelector:
+		fmt.Fprintf(w, ".%s", selector.Name)
+
+	case ast.CompoundSelector:
+		writeSelector(w, selector.Left)
+		writeSelector(w, selector.Right)
+
+	case ast.RelativeSelector:
+		writeSelector(w, selector.Left)
+		fmt.Fprintf(w, "%c", selector.Combinator)
+		writeSelector(w, selector.Right)
 	}
+}
 
-	fmt.Fprintf(w, "}")
+func writeDeclaration(w io.Writer, declaration ast.Declaration) {
+	fmt.Fprintf(w, "%s:", declaration.Name)
+
+	for _, t := range declaration.Value {
+		writeToken(w, t)
+	}
 }
 
 func writeToken(w io.Writer, t token.Token) {

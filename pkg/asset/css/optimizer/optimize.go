@@ -5,30 +5,17 @@ import (
 )
 
 func Optimize(styleSheet ast.StyleSheet) ast.StyleSheet {
-	rules := styleSheet.Rules
+	rules := make([]ast.Rule, len(styleSheet.Rules))
 
-	for i, rule := range rules {
-		rules[i] = optimizeRule(rule)
+	for i, n := 0, len(rules); i < n; i++ {
+		rules[i] = optimizeRule(styleSheet.Rules[i])
 	}
+
+	styleSheet.Rules = rules
 
 	return styleSheet
 }
 
 func optimizeRule(rule ast.Rule) ast.Rule {
-	switch rule := rule.(type) {
-	case ast.AtRule:
-		return optimizeAtRule(rule)
-	case ast.QualifiedRule:
-		return optimizeQualifiedRule(rule)
-	}
-
 	return rule
-}
-
-func optimizeAtRule(atRule ast.AtRule) ast.AtRule {
-	return atRule
-}
-
-func optimizeQualifiedRule(qualifiedRule ast.QualifiedRule) ast.QualifiedRule {
-	return qualifiedRule
 }

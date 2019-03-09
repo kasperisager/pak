@@ -450,6 +450,8 @@ func parseDeclaration(tokens []token.Token, name string) ([]token.Token, ast.Dec
 		}
 	}
 
+	tokens = skipWhitespace(tokens)
+
 	for len(tokens) > 0 {
 		switch t := tokens[0].(type) {
 		case token.CloseCurly:

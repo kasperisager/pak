@@ -92,10 +92,10 @@ type (
 )
 
 const (
-	Descendant SelectorCombinator = ' '
-	DirectDescendant = '>'
-	Sibling = '~'
-	DirectSibling = '+'
+	Descendant       SelectorCombinator = ' '
+	DirectDescendant                    = '>'
+	Sibling                             = '~'
+	DirectSibling                       = '+'
 )
 
 func (r StyleRule) VisitRule(v RuleVisitor) { v.StyleRule(r) }

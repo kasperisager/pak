@@ -1,13 +1,9 @@
 package asset
 
-import (
-	"io"
-)
-
 type Asset interface {
 	Path() string
+	Data() []byte
 	References() []Reference
-	Write(io.Writer)
 }
 
 type Reference struct {

@@ -61,7 +61,7 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.CompoundSelector{
-								Left: ast.IdSelector{Name: "foo"},
+								Left:  ast.IdSelector{Name: "foo"},
 								Right: ast.ClassSelector{Name: "bar"},
 							},
 						},
@@ -78,7 +78,7 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.CompoundSelector{
 								Left: ast.CompoundSelector{
-									Left: ast.IdSelector{Name: "foo"},
+									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
 								},
 								Right: ast.ClassSelector{Name: "baz"},
@@ -98,7 +98,7 @@ func TestParse(t *testing.T) {
 							ast.RelativeSelector{
 								Combinator: ast.DirectDescendant,
 								Left: ast.CompoundSelector{
-									Left: ast.IdSelector{Name: "foo"},
+									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
 								},
 								Right: ast.ClassSelector{Name: "baz"},
@@ -118,7 +118,7 @@ func TestParse(t *testing.T) {
 							ast.RelativeSelector{
 								Combinator: ast.Descendant,
 								Left: ast.CompoundSelector{
-									Left: ast.IdSelector{Name: "foo"},
+									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
 								},
 								Right: ast.ClassSelector{Name: "baz"},

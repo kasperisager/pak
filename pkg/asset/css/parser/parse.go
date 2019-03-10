@@ -137,7 +137,6 @@ func parseImportRule(tokens []token.Token) ([]token.Token, ast.ImportRule, error
 	return tokens, rule, nil
 }
 
-
 func parseStyleRule(tokens []token.Token) ([]token.Token, ast.StyleRule, error) {
 	rule := ast.StyleRule{}
 
@@ -206,7 +205,7 @@ func parseSelectorList(tokens []token.Token) ([]token.Token, []ast.Selector, err
 		default:
 			var (
 				selector ast.Selector
-				err error
+				err      error
 			)
 
 			tokens, selector, err = parseSelector(tokens)
@@ -226,9 +225,9 @@ func parseSelectorList(tokens []token.Token) ([]token.Token, []ast.Selector, err
 
 func parseSelector(tokens []token.Token) ([]token.Token, ast.Selector, error) {
 	var (
-		left ast.Selector
+		left  ast.Selector
 		right ast.Selector
-		err error
+		err   error
 	)
 
 	for len(tokens) > 0 {
@@ -384,7 +383,7 @@ func parseRelativeSelector(tokens []token.Token, left ast.Selector) ([]token.Tok
 
 	var (
 		right ast.Selector
-		err error
+		err   error
 	)
 
 	tokens, right, err = parseSelector(tokens)
@@ -412,7 +411,7 @@ func parseDeclarationList(tokens []token.Token) ([]token.Token, []ast.Declaratio
 		case token.Ident:
 			var (
 				declaration ast.Declaration
-				err error
+				err         error
 			)
 
 			tokens, declaration, err = parseDeclaration(tokens[1:], t.Value)

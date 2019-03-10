@@ -1,8 +1,9 @@
 package css
 
 import (
+	"bytes"
 	"net/url"
-	"io"
+	"path"
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
@@ -11,14 +12,14 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
-func Asset(path string, contents string) (asset.Asset, error) {
-	p, err := url.Parse(path)
+func Asset(filename string, contents []byte) (asset.Asset, error) {
+	p, err := url.Parse(filename)
 
 	if err != nil {
 		return nil, err
 	}
 
-	tokens, err := scanner.Scan([]rune(contents))
+	tokens, err := scanner.Scan(bytes.Runes(contents))
 
 	if err != nil {
 		return nil, err
@@ -34,28 +35,32 @@ func Asset(path string, contents string) (asset.Asset, error) {
 }
 
 type cssAsset struct {
-	path       url.URL
-	styleSheet ast.StyleSheet
+	Url        url.URL
+	StyleSheet ast.StyleSheet
 }
 
 func (a cssAsset) Path() string {
-	return a.path.String()
+	return a.Url.String()
 }
 
 func (a cssAsset) References() []asset.Reference {
 	references := []asset.Reference{}
 
-	for _, rule := range a.styleSheet.Rules {
+	for _, rule := range a.StyleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
-			reference, err := url.Parse(rule.Url)
+			ref, err := url.Parse(rule.Url)
 
 			if err != nil {
 				return nil
 			}
 
+			if ref.Host != "" {
+				continue
+			}
+
 			references = append(references, asset.Reference{
-				Path: a.path.ResolveReference(reference).String(),
+				Path: path.Join(path.Dir(a.Url.Path), ref.Path),
 			})
 
 		default:
@@ -66,6 +71,8 @@ func (a cssAsset) References() []asset.Reference {
 	return references
 }
 
-func (a cssAsset) Write(w io.Writer) {
-	writer.Write(w, a.styleSheet)
+func (a cssAsset) Data() []byte {
+	var b bytes.Buffer
+	writer.Write(&b, a.StyleSheet)
+	return b.Bytes()
 }

@@ -77,27 +77,22 @@ func (cmd *Command) Run(args []string) {
 	}
 }
 
-func (cmd *Command) Error(message string) {
-	fmt.Fprintf(
-		os.Stderr,
-		"%s: %s\n",
-		cmd.invocation(),
-		message,
-	)
+func (cmd *Command) Error(err error) {
+	fmt.Fprintf(os.Stderr, "%s: %s\n", cmd.invocation(), err)
 	ExitCode(1)
 }
 
 func (cmd *Command) Errorf(format string, args ...interface{}) {
-	cmd.Error(fmt.Sprintf(format, args...))
+	cmd.Error(fmt.Errorf(format, args...))
 }
 
-func (cmd *Command) Fatal(message string) {
-	cmd.Error(message)
+func (cmd *Command) Fatal(err error) {
+	cmd.Error(err)
 	Exit()
 }
 
 func (cmd *Command) Fatalf(format string, args ...interface{}) {
-	cmd.Fatal(fmt.Sprintf(format, args...))
+	cmd.Fatal(fmt.Errorf(format, args...))
 }
 
 func (cmd *Command) invocation() string {

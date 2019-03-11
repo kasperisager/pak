@@ -23,27 +23,35 @@ func Build(cmd *cli.Command) {
 	cmd.Usage("[flags] [entry files]")
 
 	cmd.HandleFunc(func(args []string) {
-		assets, err := resolveAssetGraph(args)
+		base, err := os.Getwd()
 
 		if err != nil {
-			cmd.Fatalf("%s\n", err)
+			cmd.Fatal(err)
+		}
+
+		assets, err := resolveAssetGraph(args, base)
+
+		if err != nil {
+			cmd.Fatal(err)
 		}
 
 		err = writeAssetGraph(assets, *out, *root)
 
 		if err != nil {
-			cmd.Fatalf("%s\n", err)
+			cmd.Fatal(err)
 		}
 	})
 }
 
-func resolveAssetGraph(filenames []string) (map[string]asset.Asset, error) {
+func resolveAssetGraph(filenames []string, base string) (map[string]asset.Asset, error) {
 	assets := make(map[string]asset.Asset, len(filenames))
 
 	for len(filenames) > 0 {
 		var filename string
 
 		filename, filenames = filenames[0], filenames[1:]
+
+		filename, err := filepath.Rel(base, filepath.Join(base, filename))
 
 		if _, ok := assets[filename]; ok {
 			continue
@@ -87,7 +95,7 @@ func resolveAsset(filename string) (asset asset.Asset, err error) {
 	return asset, nil
 }
 
-func writeAssetGraph(assets map[string]asset.Asset, out string, root string) error {
+func writeAssetGraph(assets map[string]asset.Asset, out, root string) error {
 	if root == "" {
 		filenames := make([]string, 0, len(assets))
 
@@ -95,7 +103,13 @@ func writeAssetGraph(assets map[string]asset.Asset, out string, root string) err
 			filenames = append(filenames, filename)
 		}
 
-		root = commonDir(filenames)
+		var err error
+
+		root, err = commonDir(filenames)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	for filename, asset := range assets {
@@ -106,6 +120,10 @@ func writeAssetGraph(assets map[string]asset.Asset, out string, root string) err
 		}
 
 		output := filepath.Join(out, filename)
+
+		if !strings.HasPrefix(output, out) {
+			return fmt.Errorf("%s: file outside root directory", filename)
+		}
 
 		if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
 			return err
@@ -119,7 +137,7 @@ func writeAssetGraph(assets map[string]asset.Asset, out string, root string) err
 	return nil
 }
 
-func commonDir(filenames []string) string {
+func commonDir(filenames []string) (string, error) {
 	var common []string
 
 	for i, filename := range filenames {
@@ -135,11 +153,11 @@ func commonDir(filenames []string) string {
 			}
 
 			for i, part := range parts {
-				if common[i] != part {
-					if i == 0 {
-						return ""
-					}
+				if part == ".." {
+					return "", fmt.Errorf("%s: file outside working directory", filename)
+				}
 
+				if common[i] != part {
 					common = common[:i]
 					break
 				}
@@ -147,5 +165,5 @@ func commonDir(filenames []string) string {
 		}
 	}
 
-	return filepath.Join(common...)
+	return filepath.Join(common...), nil
 }

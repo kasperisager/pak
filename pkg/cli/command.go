@@ -17,12 +17,12 @@ func (handle HandlerFunc) Handle(args []string) {
 }
 
 type Command struct {
-	name     string
-	handler  Handler
-	flag     flag.FlagSet
-	usage    string
-	parent   *Command
-	commands map[string]Command
+	name        string
+	handler     Handler
+	flag        flag.FlagSet
+	usage       string
+	parent      *Command
+	subcommands map[string]Command
 }
 
 func New(name string, usage string) *Command {
@@ -45,14 +45,14 @@ func (cmd *Command) HandleFunc(handler HandlerFunc) {
 	cmd.handler = handler
 }
 
-func (cmd *Command) Command(name string, help string, init func(*Command)) {
-	if cmd.commands == nil {
-		cmd.commands = make(map[string]Command)
+func (cmd *Command) AddCommand(name string, help string, init func(*Command)) {
+	if cmd.subcommands == nil {
+		cmd.subcommands = make(map[string]Command)
 	}
 
 	command := Command{name: name, parent: cmd}
 	init(&command)
-	cmd.commands[name] = command
+	cmd.subcommands[name] = command
 }
 
 func (cmd *Command) Run(args []string) {
@@ -61,29 +61,43 @@ func (cmd *Command) Run(args []string) {
 
 	args = cmd.flag.Args()
 
-	if cmd.handler != nil {
+	switch {
+	case cmd.handler != nil:
 		cmd.handler.Handle(args)
-	} else if len(args) > 0 {
-		if cmd, ok := cmd.commands[args[0]]; ok {
-			cmd.Run(args[1:])
+
+	case len(args) > 0:
+		if subcmd, ok := cmd.subcommands[args[0]]; ok {
+			subcmd.Run(args[1:])
 		} else {
-			fmt.Fprintf(flag.CommandLine.Output(), "%s: '%s' is not a command\n", cmd.invocation(), args[0])
-			os.Exit(2)
+			cmd.Fatalf("'%s' is not a command", args[0])
 		}
-	} else {
+
+	default:
 		cmd.printUsage()
 	}
 }
 
+func (cmd *Command) Error(message string) {
+	fmt.Fprintf(
+		os.Stderr,
+		"%s: %s\n",
+		cmd.invocation(),
+		message,
+	)
+	ExitCode(1)
+}
+
 func (cmd *Command) Errorf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "%s: %s", cmd.invocation(), fmt.Sprintf(format, args...))
-	exitCode = 2
+	cmd.Error(fmt.Sprintf(format, args...))
+}
+
+func (cmd *Command) Fatal(message string) {
+	cmd.Error(message)
+	Exit()
 }
 
 func (cmd *Command) Fatalf(format string, args ...interface{}) {
-	cmd.Errorf(format, args...)
-	exitCode = 1
-	exit()
+	cmd.Fatal(fmt.Sprintf(format, args...))
 }
 
 func (cmd *Command) invocation() string {
@@ -95,7 +109,13 @@ func (cmd *Command) invocation() string {
 }
 
 func (cmd *Command) printUsage() {
-	fmt.Fprintf(cmd.flag.Output(), "usage: %s %s\n", cmd.invocation(), cmd.usage)
+	fmt.Fprintf(
+		os.Stderr,
+		"usage: %s %s\n",
+		cmd.invocation(),
+		cmd.usage,
+	)
 	cmd.flag.PrintDefaults()
-	os.Exit(2)
+	ExitCode(2)
+	Exit()
 }

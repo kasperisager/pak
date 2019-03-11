@@ -10,7 +10,7 @@ import (
 func main() {
 	app := cli.New("pak", "<command> [<arguments>]")
 
-	app.Command("build", "Build the thing!", build.Build)
+	app.AddCommand("build", "Build the thing!", build.Build)
 
 	app.Run(os.Args[1:])
 }

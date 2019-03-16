@@ -1,11 +1,12 @@
 package asset
 
-type Asset interface {
-	Path() string
-	Data() []byte
-	References() []Reference
-}
+import (
+	"net/url"
+)
 
-type Reference struct {
-	Path string
+type Asset interface {
+	URL() *url.URL
+	References() []*url.URL
+	Data() []byte
+	Merge(Asset) bool
 }

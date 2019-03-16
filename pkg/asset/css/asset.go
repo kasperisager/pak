@@ -3,7 +3,6 @@ package css
 import (
 	"bytes"
 	"net/url"
-	"path"
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
@@ -12,13 +11,7 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
-func Asset(filename string, contents []byte) (asset.Asset, error) {
-	p, err := url.Parse(filename)
-
-	if err != nil {
-		return nil, err
-	}
-
+func Asset(url *url.URL, contents []byte) (asset.Asset, error) {
 	tokens, err := scanner.Scan(bytes.Runes(contents))
 
 	if err != nil {
@@ -31,37 +24,28 @@ func Asset(filename string, contents []byte) (asset.Asset, error) {
 		return nil, err
 	}
 
-	return cssAsset{*p, styleSheet}, nil
+	return &cssAsset{url, styleSheet}, nil
 }
 
 type cssAsset struct {
-	Url        url.URL
-	StyleSheet ast.StyleSheet
+	url *url.URL
+	styleSheet ast.StyleSheet
 }
 
-func (a cssAsset) Path() string {
-	return a.Url.String()
+func (a *cssAsset) URL() *url.URL {
+	return a.url
 }
 
-func (a cssAsset) References() []asset.Reference {
-	references := []asset.Reference{}
+func (a *cssAsset) References() []*url.URL {
+	references := []*url.URL{}
 
-	for _, rule := range a.StyleSheet.Rules {
+	for _, rule := range a.styleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
-			ref, err := url.Parse(rule.Url)
-
-			if err != nil {
-				return nil
-			}
-
-			if ref.Host != "" {
-				continue
-			}
-
-			references = append(references, asset.Reference{
-				Path: path.Join(path.Dir(a.Url.Path), ref.Path),
-			})
+			references = append(
+				references,
+				a.URL().ResolveReference(rule.URL),
+			)
 
 		default:
 			return references
@@ -71,8 +55,39 @@ func (a cssAsset) References() []asset.Reference {
 	return references
 }
 
-func (a cssAsset) Data() []byte {
+func (a *cssAsset) Data() []byte {
 	var b bytes.Buffer
-	writer.Write(&b, a.StyleSheet)
+	writer.Write(&b, a.styleSheet)
 	return b.Bytes()
+}
+
+func (a *cssAsset) Merge(b asset.Asset) bool {
+	switch b := b.(type) {
+	case *cssAsset:
+		needle := b.URL().String()
+
+		for i, rule := range a.styleSheet.Rules {
+			switch rule := rule.(type) {
+			case ast.ImportRule:
+				found := a.URL().ResolveReference(rule.URL).String()
+
+				if needle == found {
+					a.styleSheet.Rules = append(
+						a.styleSheet.Rules[:i],
+						append(
+							b.styleSheet.Rules,
+							a.styleSheet.Rules[i+1:]...,
+						)...,
+					)
+
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func (a *cssAsset) Hoist() {
 }

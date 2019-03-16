@@ -2,8 +2,13 @@ package build
 
 import (
 	"fmt"
+	"hash"
+	"hash/fnv"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -16,132 +21,57 @@ func Build(cmd *cli.Command) {
 	flag := cmd.Flag()
 
 	var (
-		out  = flag.String("o", "dist", "The directory to write files to")
-		root = flag.String("root", "", "The root directory of entry files")
+		out    = *flag.String("o", "dist", "The directory to write files to")
+		root   = *flag.String("root", "", "The root directory of entry files")
+		vendor = *flag.String("vendor", "vendor", "The vendor directory of external files")
 	)
 
 	cmd.Usage("[flags] [entry files]")
 
-	cmd.HandleFunc(func(args []string) {
-		base, err := os.Getwd()
+	cmd.HandleFunc(func(filenames []string) {
+		var err error
+
+		if root == "" {
+			root, err = computeRoot(filenames)
+
+			if err != nil {
+				cmd.Fatal(err)
+			}
+		}
+
+		urls := make([]*url.URL, len(filenames))
+
+		for i, filename := range filenames {
+			url, err := resolveResource(filename, root)
+
+			if err != nil {
+				cmd.Fatal(err)
+			}
+
+			urls[i] = url
+		}
+
+		graph, err := resolveAssetGraph(urls, root)
 
 		if err != nil {
 			cmd.Fatal(err)
 		}
 
-		assets, err := resolveAssetGraph(args, base)
-
-		if err != nil {
-			cmd.Fatal(err)
-		}
-
-		err = writeAssetGraph(assets, *out, *root)
-
-		if err != nil {
+		if err = write(graph, out, vendor); err != nil {
 			cmd.Fatal(err)
 		}
 	})
 }
 
-func resolveAssetGraph(filenames []string, base string) (map[string]asset.Asset, error) {
-	assets := make(map[string]asset.Asset, len(filenames))
-
-	for len(filenames) > 0 {
-		var filename string
-
-		filename, filenames = filenames[0], filenames[1:]
-
-		filename, err := filepath.Rel(base, filepath.Join(base, filename))
-
-		if _, ok := assets[filename]; ok {
-			continue
-		}
-
-		asset, err := resolveAsset(filename)
-
-		if err != nil {
-			return nil, err
-		}
-
-		assets[filename] = asset
-
-		for _, reference := range asset.References() {
-			filenames = append(filenames, filepath.FromSlash(reference.Path))
-		}
-	}
-
-	return assets, nil
-}
-
-func resolveAsset(filename string) (asset asset.Asset, err error) {
-	switch filepath.Ext(filename) {
-	case ".css":
-		r, err := ioutil.ReadFile(filename)
-
-		if err != nil {
-			return nil, err
-		}
-
-		asset, err = css.Asset(filename, r)
-
-		if err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("%s: unsupported file type", filename)
-	}
-
-	return asset, nil
-}
-
-func writeAssetGraph(assets map[string]asset.Asset, out, root string) error {
-	if root == "" {
-		filenames := make([]string, 0, len(assets))
-
-		for filename, _ := range assets {
-			filenames = append(filenames, filename)
-		}
-
-		var err error
-
-		root, err = commonDir(filenames)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	for filename, asset := range assets {
-		filename, err := filepath.Rel(root, filename)
-
-		if err != nil {
-			return err
-		}
-
-		output := filepath.Join(out, filename)
-
-		if !strings.HasPrefix(output, out) {
-			return fmt.Errorf("%s: file outside root directory", filename)
-		}
-
-		if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
-			return err
-		}
-
-		if err := ioutil.WriteFile(output, asset.Data(), 0644); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func commonDir(filenames []string) (string, error) {
+func computeRoot(filenames []string) (string, error) {
 	var common []string
 
 	for i, filename := range filenames {
 		parts := strings.Split(filepath.Dir(filename), string(os.PathSeparator))
+
+		if parts[0] == ".." {
+			return "", fmt.Errorf("%s: file outside working directory", filename)
+		}
 
 		if i == 0 {
 			common = parts
@@ -153,10 +83,6 @@ func commonDir(filenames []string) (string, error) {
 			}
 
 			for i, part := range parts {
-				if part == ".." {
-					return "", fmt.Errorf("%s: file outside working directory", filename)
-				}
-
 				if common[i] != part {
 					common = common[:i]
 					break
@@ -166,4 +92,255 @@ func commonDir(filenames []string) (string, error) {
 	}
 
 	return filepath.Join(common...), nil
+}
+
+func resolveResource(filename string, base string) (*url.URL, error) {
+	filename, err := filepath.Rel(base, filename)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &url.URL{Path: "/" + filepath.ToSlash(filename)}, nil
+}
+
+func resolveFilename(url *url.URL, base string) string {
+	var filename string
+
+	if url.IsAbs() {
+		filename = path.Join(base, url.Host, url.Path)
+	} else {
+		filename = path.Join(base, url.Path)
+	}
+
+	return filepath.FromSlash(filename)
+}
+
+func resolveAssetGraph(urls []*url.URL, root string) (*asset.Graph, error) {
+	graph := asset.NewGraph()
+
+	entries := make([]asset.Asset, len(urls))
+
+	for i, url := range urls {
+		asset, err := resolveAsset(url, root, graph)
+
+		if err != nil {
+			return nil, err
+		}
+
+		entries[i] = asset
+	}
+
+	if err := compress(graph, entries); err != nil {
+		return nil, err
+	}
+
+	return graph, nil
+}
+
+func resolveAsset(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error) {
+	if asset, ok := graph.Lookup(url); ok {
+		return asset, nil
+	}
+
+	var asset asset.Asset
+
+	switch filepath.Ext(url.Path) {
+	case ".css":
+		bytes, err := fetch(url, root)
+
+		if err != nil {
+			return nil, err
+		}
+
+		asset, err = css.Asset(url, bytes)
+
+		if err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, nil
+	}
+
+	graph.Add(asset)
+
+	for _, url := range asset.References() {
+		reference, err := resolveAsset(url, root, graph)
+
+		if err != nil {
+			return nil, err
+		}
+
+		graph.Reference(asset, reference)
+	}
+
+	return asset, nil
+}
+
+func compress(graph *asset.Graph, entries []asset.Asset) error {
+	partitions, err := partition(graph, entries)
+
+	if err != nil {
+		return err
+	}
+
+	visited := make(map[asset.Asset]bool)
+
+	for _, entry := range entries {
+		_, err := merge(graph, partitions, entry, visited)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func merge(
+	graph *asset.Graph,
+	partitions map[asset.Asset]string,
+	asset asset.Asset,
+	visited map[asset.Asset]bool,
+) (asset.Asset, error) {
+	if visited[asset] {
+		return asset, nil
+	}
+
+	visited[asset] = true
+
+	references, _ := graph.Outgoing(asset)
+
+	for _, reference := range references {
+		if visited[reference] {
+			continue
+		}
+
+		reference, err := merge(graph, partitions, reference, visited)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if partitions[asset] == partitions[reference] {
+			if asset.Merge(reference) {
+				graph.Merge(asset, reference)
+			}
+		}
+	}
+
+	return asset, nil
+}
+
+func partition(graph *asset.Graph, entries []asset.Asset) (map[asset.Asset]string, error) {
+	hashes := make(map[asset.Asset]hash.Hash)
+
+	for _, entry := range entries {
+		data, err := entry.URL().MarshalBinary()
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = mark(graph, hashes, entry, data, make(map[asset.Asset]bool))
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	partitions := make(map[asset.Asset]string)
+
+	for asset, hash := range hashes {
+		partitions[asset] = string(hash.Sum(nil))
+	}
+
+	return partitions, nil
+}
+
+func mark(
+	graph *asset.Graph,
+	hashes map[asset.Asset]hash.Hash,
+	asset asset.Asset,
+	data []byte,
+	visited map[asset.Asset]bool,
+) error {
+	if visited[asset] {
+		return nil
+	}
+
+	visited[asset] = true
+
+	hash, ok := hashes[asset]
+
+	if !ok {
+		hash = fnv.New64()
+		hashes[asset] = hash
+	}
+
+	_, err := hash.Write(data)
+
+	if err != nil {
+		return err
+	}
+
+	references, _ := graph.Outgoing(asset)
+
+	for _, reference := range references {
+		err := mark(graph, hashes, reference, data, visited)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func fetch(url *url.URL, root string) ([]byte, error) {
+	var (
+		bytes []byte
+		err   error
+	)
+
+	if url.IsAbs() {
+		response, err := http.Get(url.String())
+
+		if err != nil {
+			return nil, err
+		}
+
+		defer response.Body.Close()
+
+		bytes, err = ioutil.ReadAll(response.Body)
+	} else {
+		bytes, err = ioutil.ReadFile(resolveFilename(url, root))
+	}
+
+	return bytes, err
+}
+
+func write(graph *asset.Graph, out, vendor string) error {
+	for _, asset := range graph.Assets() {
+		var filename string
+
+		url := asset.URL()
+
+		if url.IsAbs() {
+			filename = resolveFilename(url, filepath.Join(out, vendor))
+		} else {
+			filename = resolveFilename(url, out)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+			return err
+		}
+
+		if err := ioutil.WriteFile(filename, asset.Data(), 0644); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

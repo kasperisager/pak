@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"net/url"
+
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
 
@@ -24,7 +26,7 @@ type (
 	}
 
 	ImportRule struct {
-		Url string
+		URL *url.URL
 	}
 
 	Declaration struct {
@@ -105,6 +107,8 @@ func (r ImportRule) VisitRule(v RuleVisitor) { v.ImportRule(r) }
 func (s IdSelector) VisitSelector(v SelectorVisitor) { v.IdSelector(s) }
 
 func (s ClassSelector) VisitSelector(v SelectorVisitor) { v.ClassSelector(s) }
+
+func (s TypeSelector) VisitSelector(v SelectorVisitor) { v.TypeSelector(s) }
 
 func (s RelativeSelector) VisitSelector(v SelectorVisitor) { v.RelativeSelector(s) }
 

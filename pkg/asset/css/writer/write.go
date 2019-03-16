@@ -22,7 +22,7 @@ func writeStyleSheet(w io.Writer, styleSheet ast.StyleSheet) {
 func writeRule(w io.Writer, rule ast.Rule) {
 	switch rule := rule.(type) {
 	case ast.ImportRule:
-		fmt.Fprintf(w, "@import \"%s\";", rule.Url)
+		fmt.Fprintf(w, "@import \"%s\";", rule.URL.String())
 
 	case ast.StyleRule:
 		for i, selector := range rule.Selectors {

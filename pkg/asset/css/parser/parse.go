@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"net/url"
+
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
@@ -76,11 +78,27 @@ func parseImportRule(tokens []token.Token) ([]token.Token, ast.ImportRule, error
 
 	switch t := tokens[0].(type) {
 	case token.Url:
-		rule.Url = t.Value
+		parsed, err := url.Parse(t.Value)
+
+		if err != nil {
+			return tokens, rule, SyntaxError{
+				Message: err.Error(),
+			}
+		}
+
+		rule.URL = parsed
 		tokens = tokens[1:]
 
 	case token.String:
-		rule.Url = t.Value
+		parsed, err := url.Parse(t.Value)
+
+		if err != nil {
+			return tokens, rule, SyntaxError{
+				Message: err.Error(),
+			}
+		}
+
+		rule.URL = parsed
 		tokens = tokens[1:]
 
 	case token.Function:
@@ -99,7 +117,15 @@ func parseImportRule(tokens []token.Token) ([]token.Token, ast.ImportRule, error
 		}
 
 		if t, ok := tokens[0].(token.String); ok {
-			rule.Url = t.Value
+			parsed, err := url.Parse(t.Value)
+
+			if err != nil {
+				return tokens, rule, SyntaxError{
+					Message: err.Error(),
+				}
+			}
+
+			rule.URL = parsed
 			tokens = tokens[1:]
 		} else {
 			return tokens, rule, SyntaxError{
@@ -268,6 +294,15 @@ func parseSelector(tokens []token.Token) ([]token.Token, ast.Selector, error) {
 				}
 			}
 
+		case token.Ident:
+			tokens, right, err = parseTypeSelector(tokens)
+
+			if err != nil {
+				return tokens, left, err
+			}
+
+			left = combineSelectors(left, right)
+
 		case token.Whitespace:
 			if len(tokens) > 1 && startsSelector(tokens[1]) {
 				tokens, left, err = parseRelativeSelector(tokens, left)
@@ -341,6 +376,27 @@ func parseClassSelector(tokens []token.Token) ([]token.Token, ast.ClassSelector,
 		default:
 			return tokens, selector, SyntaxError{
 				Message: "unexpected token, expected class",
+			}
+		}
+	}
+
+	return tokens, selector, SyntaxError{
+		Message: "unexpected end of file",
+	}
+}
+
+func parseTypeSelector(tokens []token.Token) ([]token.Token, ast.TypeSelector, error) {
+	selector := ast.TypeSelector{}
+
+	if len(tokens) > 0 {
+		switch t := tokens[0].(type) {
+		case token.Ident:
+			selector.Name = t.Value
+			return tokens[1:], selector, nil
+
+		default:
+			return tokens, selector, SyntaxError{
+				Message: "unexpected token, expected type",
 			}
 		}
 	}

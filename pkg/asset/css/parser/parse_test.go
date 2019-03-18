@@ -2,6 +2,7 @@ package parser
 
 import (
 	"testing"
+	"net/url"
 
 	"github.com/stretchr/testify/assert"
 
@@ -133,7 +134,7 @@ func TestParse(t *testing.T) {
 			`@import "foo"`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{Url: "foo"},
+					ast.ImportRule{URL: &url.URL{Path: "foo"}},
 				},
 			},
 		},
@@ -141,7 +142,7 @@ func TestParse(t *testing.T) {
 			`@import url(foo)`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{Url: "foo"},
+					ast.ImportRule{URL: &url.URL{Path: "foo"}},
 				},
 			},
 		},
@@ -149,7 +150,7 @@ func TestParse(t *testing.T) {
 			`@import url("foo")`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{
-					ast.ImportRule{Url: "foo"},
+					ast.ImportRule{URL: &url.URL{Path: "foo"}},
 				},
 			},
 		},

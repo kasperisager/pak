@@ -42,7 +42,7 @@ func Build(cmd *cli.Command) {
 		urls := make([]*url.URL, len(filenames))
 
 		for i, filename := range filenames {
-			url, err := resolveResource(filename, root)
+			url, err := resource(filename, root)
 
 			if err != nil {
 				cmd.Fatal(err)
@@ -51,7 +51,7 @@ func Build(cmd *cli.Command) {
 			urls[i] = url
 		}
 
-		graph, err := resolveAssetGraph(urls, root)
+		graph, err := read(urls, root)
 
 		if err != nil {
 			cmd.Fatal(err)
@@ -94,7 +94,7 @@ func computeRoot(filenames []string) (string, error) {
 	return filepath.Join(common...), nil
 }
 
-func resolveResource(filename string, base string) (*url.URL, error) {
+func resource(filename string, base string) (*url.URL, error) {
 	filename, err := filepath.Rel(base, filename)
 
 	if err != nil {
@@ -104,7 +104,7 @@ func resolveResource(filename string, base string) (*url.URL, error) {
 	return &url.URL{Path: "/" + filepath.ToSlash(filename)}, nil
 }
 
-func resolveFilename(url *url.URL, base string) string {
+func filename(url *url.URL, base string) string {
 	var filename string
 
 	if url.IsAbs() {
@@ -116,13 +116,13 @@ func resolveFilename(url *url.URL, base string) string {
 	return filepath.FromSlash(filename)
 }
 
-func resolveAssetGraph(urls []*url.URL, root string) (*asset.Graph, error) {
+func read(urls []*url.URL, root string) (*asset.Graph, error) {
 	graph := asset.NewGraph()
 
 	entries := make([]asset.Asset, len(urls))
 
 	for i, url := range urls {
-		asset, err := resolveAsset(url, root, graph)
+		asset, err := resolve(url, root, graph)
 
 		if err != nil {
 			return nil, err
@@ -138,7 +138,7 @@ func resolveAssetGraph(urls []*url.URL, root string) (*asset.Graph, error) {
 	return graph, nil
 }
 
-func resolveAsset(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error) {
+func resolve(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error) {
 	if asset, ok := graph.Lookup(url); ok {
 		return asset, nil
 	}
@@ -160,13 +160,13 @@ func resolveAsset(url *url.URL, root string, graph *asset.Graph) (asset.Asset, e
 		}
 
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("%s: unsupported file type", url)
 	}
 
 	graph.Add(asset)
 
 	for _, url := range asset.References() {
-		reference, err := resolveAsset(url, root, graph)
+		reference, err := resolve(url, root, graph)
 
 		if err != nil {
 			return nil, err
@@ -315,7 +315,7 @@ func fetch(url *url.URL, root string) ([]byte, error) {
 
 		bytes, err = ioutil.ReadAll(response.Body)
 	} else {
-		bytes, err = ioutil.ReadFile(resolveFilename(url, root))
+		bytes, err = ioutil.ReadFile(filename(url, root))
 	}
 
 	return bytes, err
@@ -323,21 +323,21 @@ func fetch(url *url.URL, root string) ([]byte, error) {
 
 func write(graph *asset.Graph, out, vendor string) error {
 	for _, asset := range graph.Assets() {
-		var filename string
+		var target string
 
 		url := asset.URL()
 
 		if url.IsAbs() {
-			filename = resolveFilename(url, filepath.Join(out, vendor))
+			target = filename(url, filepath.Join(out, vendor))
 		} else {
-			filename = resolveFilename(url, out)
+			target = filename(url, out)
 		}
 
-		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return err
 		}
 
-		if err := ioutil.WriteFile(filename, asset.Data(), 0644); err != nil {
+		if err := ioutil.WriteFile(target, asset.Data(), 0644); err != nil {
 			return err
 		}
 	}

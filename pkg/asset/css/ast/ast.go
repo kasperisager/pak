@@ -18,6 +18,7 @@ type (
 	RuleVisitor struct {
 		StyleRule  func(StyleRule)
 		ImportRule func(ImportRule)
+		MediaRule  func(MediaRule)
 	}
 
 	StyleRule struct {
@@ -29,11 +30,22 @@ type (
 		URL *url.URL
 	}
 
+	MediaRule struct {
+		Conditions []MediaQuery
+		StyleSheet StyleSheet
+	}
+
 	Declaration struct {
 		Name      string
 		Value     []token.Token
 		Important bool
 	}
+
+	SelectorMatcher rune
+
+	SelectorModifier int
+
+	SelectorCombinator rune
 
 	Selector interface {
 		VisitSelector(SelectorVisitor)
@@ -57,16 +69,12 @@ type (
 		Name string
 	}
 
-	AttributeMatcher int
-
-	AttributeModifier int
-
 	AttributeSelector struct {
 		Name      string
 		Namespace *string
-		Value     *string
-		Matcher   AttributeMatcher
-		Modifier  AttributeModifier
+		Value     string
+		Matcher   SelectorMatcher
+		Modifier  SelectorModifier
 	}
 
 	TypeSelector struct {
@@ -75,8 +83,9 @@ type (
 	}
 
 	PseudoSelector struct {
-		Name  string
-		Value []token.Token
+		Name       string
+		Functional bool
+		Value      []token.Token
 	}
 
 	CompoundSelector struct {
@@ -84,32 +93,115 @@ type (
 		Right Selector
 	}
 
-	SelectorCombinator rune
-
 	RelativeSelector struct {
 		Combinator SelectorCombinator
 		Left       Selector
 		Right      Selector
 	}
+
+	MediaQualifier int
+
+	MediaOperator int
+
+	MediaQuery struct {
+		Type      string
+		Qualifier MediaQualifier
+		Condition MediaCondition
+	}
+
+	MediaCondition interface {
+		VisitMediaCondition(MediaConditionVisitor)
+	}
+
+	MediaConditionVisitor struct {
+		MediaOperation func(MediaOperation)
+		MediaFeature   func(MediaFeature)
+		MediaNegation  func(MediaNegation)
+	}
+
+	MediaOperation struct {
+		Operator   MediaOperator
+		Conditions []MediaCondition
+	}
+
+	MediaFeature struct {
+		Name  string
+		Value MediaValue
+	}
+
+	MediaNegation struct {
+		Condition MediaCondition
+	}
+
+	MediaValue interface {
+		VisitMediaValue(MediaValueVisitor)
+	}
+
+	MediaValueVisitor struct {
+		MediaValuePlain func(MediaValuePlain)
+		MediaValueRange func(MediaValueRange)
+	}
+
+	MediaValuePlain struct {
+		Value token.Token
+	}
+
+	MediaValueRange struct {
+		LowerValue     token.Token
+		LowerInclusive bool
+		UpperValue     token.Token
+		UpperInclusive bool
+	}
 )
 
 const (
-	Descendant       SelectorCombinator = ' '
-	DirectDescendant                    = '>'
-	Sibling                             = '~'
-	DirectSibling                       = '+'
+	CombinatorDescendant       SelectorCombinator = ' '
+	CombinatorDirectDescendant                    = '>'
+	CombinatorSibling                             = '~'
+	CombinatorDirectSibling                       = '+'
+)
+
+const (
+	MatcherEqual     SelectorMatcher = '='
+	MatcherIncludes                  = '~'
+	MatcherDashMatch                 = '|'
+	MatcherPrefix                    = '^'
+	MatcherSuffix                    = '$'
+	MatcherSubstring                 = '*'
+)
+
+const (
+	QualifierOnly MediaQualifier = iota + 1
+	QualifierNot
+)
+
+const (
+	OperatorAnd MediaOperator = iota + 1
+	OperatorOr
 )
 
 func (r StyleRule) VisitRule(v RuleVisitor) { v.StyleRule(r) }
 
 func (r ImportRule) VisitRule(v RuleVisitor) { v.ImportRule(r) }
 
+func (r MediaRule) VisitRule(v RuleVisitor) { v.MediaRule(r) }
+
 func (s IdSelector) VisitSelector(v SelectorVisitor) { v.IdSelector(s) }
 
 func (s ClassSelector) VisitSelector(v SelectorVisitor) { v.ClassSelector(s) }
 
+func (s AttributeSelector) VisitSelector(v SelectorVisitor) { v.AttributeSelector(s) }
+
 func (s TypeSelector) VisitSelector(v SelectorVisitor) { v.TypeSelector(s) }
+
+func (s PseudoSelector) VisitSelector(v SelectorVisitor) { v.PseudoSelector(s) }
 
 func (s RelativeSelector) VisitSelector(v SelectorVisitor) { v.RelativeSelector(s) }
 
 func (s CompoundSelector) VisitSelector(v SelectorVisitor) { v.CompoundSelector(s) }
+
+func (s MediaNegation) VisitMediaCondition(v MediaConditionVisitor) { v.MediaNegation(s) }
+
+func (s MediaFeature) VisitMediaCondition(v MediaConditionVisitor) { v.MediaFeature(s) }
+
+func (s MediaValuePlain) VisitMediaValue(v MediaValueVisitor) { v.MediaValuePlain(s) }

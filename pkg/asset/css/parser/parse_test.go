@@ -16,19 +16,6 @@ func TestParse(t *testing.T) {
 		styleSheet ast.StyleSheet
 	}{
 		{
-			".foo{}",
-			ast.StyleSheet{
-				Rules: []ast.Rule{
-					ast.StyleRule{
-						Selectors: []ast.Selector{
-							ast.ClassSelector{Name: "foo"},
-						},
-						Declarations: []ast.Declaration{},
-					},
-				},
-			},
-		},
-		{
 			"#foo{}",
 			ast.StyleSheet{
 				Rules: []ast.Rule{
@@ -97,7 +84,7 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.RelativeSelector{
-								Combinator: ast.DirectDescendant,
+								Combinator: ast.CombinatorDirectDescendant,
 								Left: ast.CompoundSelector{
 									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
@@ -117,12 +104,98 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.RelativeSelector{
-								Combinator: ast.Descendant,
+								Combinator: ast.CombinatorDescendant,
 								Left: ast.CompoundSelector{
 									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
 								},
 								Right: ast.ClassSelector{Name: "baz"},
+							},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			":foo{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.PseudoSelector{Name: ":foo"},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"::foo{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.PseudoSelector{Name: "::foo"},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"*{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.TypeSelector{Name: "*"},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"[foo]{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.AttributeSelector{Name: "foo"},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			"[foo=bar]{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.AttributeSelector{
+								Name: "foo",
+								Matcher: ast.MatcherEqual,
+								Value: "bar",
+							},
+						},
+						Declarations: []ast.Declaration{},
+					},
+				},
+			},
+		},
+		{
+			`[foo="bar"]{}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.AttributeSelector{
+								Name: "foo",
+								Matcher: ast.MatcherEqual,
+								Value: "bar",
 							},
 						},
 						Declarations: []ast.Declaration{},
@@ -151,6 +224,30 @@ func TestParse(t *testing.T) {
 			ast.StyleSheet{
 				Rules: []ast.Rule{
 					ast.ImportRule{URL: &url.URL{Path: "foo"}},
+				},
+			},
+		},
+		{
+			`@media screen {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{Type: "screen"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@media only screen {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{Type: "screen", Qualifier: ast.QualifierOnly},
+						},
+					},
 				},
 			},
 		},

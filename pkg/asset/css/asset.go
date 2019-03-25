@@ -2,6 +2,7 @@ package css
 
 import (
 	"bytes"
+	"fmt"
 	"net/url"
 
 	"github.com/kasperisager/pak/pkg/asset"
@@ -11,8 +12,10 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
-func Asset(url *url.URL, contents []byte) (asset.Asset, error) {
-	tokens, err := scanner.Scan(bytes.Runes(contents))
+func Asset(url *url.URL, data []byte) (asset.Asset, error) {
+	r := bytes.Runes(data)
+
+	tokens, err := scanner.Scan(r)
 
 	if err != nil {
 		return nil, err
@@ -21,6 +24,12 @@ func Asset(url *url.URL, contents []byte) (asset.Asset, error) {
 	styleSheet, err := parser.Parse(tokens)
 
 	if err != nil {
+		switch err := err.(type) {
+		case parser.SyntaxError:
+			token := tokens[err.Offset]
+			fmt.Printf("%#v\n", token)
+		}
+
 		return nil, err
 	}
 
@@ -28,7 +37,7 @@ func Asset(url *url.URL, contents []byte) (asset.Asset, error) {
 }
 
 type cssAsset struct {
-	url *url.URL
+	url        *url.URL
 	styleSheet ast.StyleSheet
 }
 

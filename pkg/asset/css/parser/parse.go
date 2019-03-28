@@ -19,6 +19,10 @@ func (err SyntaxError) Error() string {
 func Parse(tokens []token.Token) (ast.StyleSheet, error) {
 	offset, tokens, styleSheet, err := parseStyleSheet(0, tokens)
 
+	if err != nil {
+		return styleSheet, err
+	}
+
 	if len(tokens) > 0 {
 		return styleSheet, SyntaxError{
 			Offset:  offset,
@@ -26,7 +30,7 @@ func Parse(tokens []token.Token) (ast.StyleSheet, error) {
 		}
 	}
 
-	return styleSheet, err
+	return styleSheet, nil
 }
 
 func parseStyleSheet(offset int, tokens []token.Token) (int, []token.Token, ast.StyleSheet, error) {
@@ -912,7 +916,7 @@ func parseMediaCondition(offset int, tokens []token.Token) (int, []token.Token, 
 		if t.Value == "not" {
 			var (
 				condition ast.MediaCondition
-				err error
+				err       error
 			)
 
 			offset, tokens, condition, err = parseMediaExpression(
@@ -929,12 +933,81 @@ func parseMediaCondition(offset int, tokens []token.Token) (int, []token.Token, 
 		}
 
 		return offset, tokens, nil, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token",
 		}
 
 	default:
-		return parseMediaExpression(offset, tokens)
+		var (
+			left ast.MediaCondition
+			err  error
+		)
+
+		offset, tokens, left, err = parseMediaExpression(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, left, err
+		}
+
+		var operator ast.MediaOperator
+
+		for {
+			offset, tokens = skipWhitespace(offset, tokens)
+
+			switch t := peek(tokens, 1).(type) {
+			case token.Ident:
+				switch t.Value {
+				case "and":
+					if operator == 0 || operator == ast.OperatorAnd {
+						operator = ast.OperatorAnd
+					} else {
+						return offset, tokens, left, SyntaxError{
+							Offset:  offset,
+							Message: "unexpected token, expected or",
+						}
+					}
+
+					offset, tokens = advance(offset, tokens, 1)
+
+				case "or":
+					if operator == 0 || operator == ast.OperatorOr {
+						operator = ast.OperatorOr
+					} else {
+						return offset, tokens, left, SyntaxError{
+							Offset:  offset,
+							Message: "unexpected token, expected and",
+						}
+					}
+
+					offset, tokens = advance(offset, tokens, 1)
+
+				default:
+					return offset, tokens, left, SyntaxError{
+						Offset:  offset,
+						Message: "unexpected token, expected media operator",
+					}
+				}
+
+				offset, tokens = skipWhitespace(offset, tokens)
+
+				var right ast.MediaCondition
+
+				offset, tokens, right, err = parseMediaExpression(offset, tokens)
+
+				if err != nil {
+					return offset, tokens, left, err
+				}
+
+				left = ast.MediaOperation{
+					Operator: operator,
+					Left:     left,
+					Right:    right,
+				}
+
+			default:
+				return offset, tokens, left, nil
+			}
+		}
 	}
 }
 
@@ -943,9 +1016,37 @@ func parseMediaExpression(offset int, tokens []token.Token) (int, []token.Token,
 		return offset, tokens, feature, nil
 	}
 
-	return offset, tokens, nil, SyntaxError{
-		Offset: offset,
-		Message: "Shit, Sherlock",
+	switch peek(tokens, 1).(type) {
+	case token.OpenParen:
+		var (
+			condition ast.MediaCondition
+			err       error
+		)
+
+		offset, tokens, condition, err = parseMediaCondition(offset+1, tokens[1:])
+
+		if err != nil {
+			return offset, tokens, condition, err
+		}
+
+		offset, tokens = skipWhitespace(offset, tokens)
+
+		switch peek(tokens, 1).(type) {
+		case token.CloseParen:
+			return offset + 1, tokens[1:], condition, nil
+
+		default:
+			return offset, tokens, nil, SyntaxError{
+				Offset:  offset,
+				Message: "unexpected token, expected closing paren",
+			}
+		}
+
+	default:
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected opening paren",
+		}
 	}
 }
 
@@ -957,7 +1058,7 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 		offset, tokens = advance(offset, tokens, 1)
 	default:
 		return offset, tokens, feature, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token, expected opening paren",
 		}
 	}
@@ -970,7 +1071,7 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 		offset, tokens = advance(offset, tokens, 1)
 	default:
 		return offset, tokens, feature, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token, expected feature name",
 		}
 	}
@@ -982,7 +1083,7 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 		offset, tokens = advance(offset, tokens, 1)
 	default:
 		return offset, tokens, feature, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token, expected colon",
 		}
 	}
@@ -1004,7 +1105,7 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 
 	default:
 		return offset, tokens, feature, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token, expected colon",
 		}
 	}
@@ -1016,7 +1117,7 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 		offset, tokens = advance(offset, tokens, 1)
 	default:
 		return offset, tokens, feature, SyntaxError{
-			Offset: offset,
+			Offset:  offset,
 			Message: "unexpected token, expected opening paren",
 		}
 	}
@@ -1029,7 +1130,7 @@ func peek(tokens []token.Token, n int) token.Token {
 		return nil
 	}
 
-	return tokens[n - 1]
+	return tokens[n-1]
 }
 
 func advance(offset int, tokens []token.Token, n int) (int, []token.Token) {

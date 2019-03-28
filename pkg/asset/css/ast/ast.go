@@ -120,8 +120,9 @@ type (
 	}
 
 	MediaOperation struct {
-		Operator   MediaOperator
-		Conditions []MediaCondition
+		Operator MediaOperator
+		Left     MediaCondition
+		Right    MediaCondition
 	}
 
 	MediaFeature struct {
@@ -199,6 +200,8 @@ func (s PseudoSelector) VisitSelector(v SelectorVisitor) { v.PseudoSelector(s) }
 func (s RelativeSelector) VisitSelector(v SelectorVisitor) { v.RelativeSelector(s) }
 
 func (s CompoundSelector) VisitSelector(v SelectorVisitor) { v.CompoundSelector(s) }
+
+func (s MediaOperation) VisitMediaCondition(v MediaConditionVisitor) { v.MediaOperation(s) }
 
 func (s MediaNegation) VisitMediaCondition(v MediaConditionVisitor) { v.MediaNegation(s) }
 

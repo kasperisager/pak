@@ -1,13 +1,14 @@
 package parser
 
 import (
-	"testing"
 	"net/url"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
+	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
 
 func TestParse(t *testing.T) {
@@ -176,9 +177,9 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
-								Name: "foo",
+								Name:    "foo",
 								Matcher: ast.MatcherEqual,
-								Value: "bar",
+								Value:   "bar",
 							},
 						},
 						Declarations: []ast.Declaration{},
@@ -193,9 +194,9 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
-								Name: "foo",
+								Name:    "foo",
 								Matcher: ast.MatcherEqual,
-								Value: "bar",
+								Value:   "bar",
 							},
 						},
 						Declarations: []ast.Declaration{},
@@ -246,6 +247,96 @@ func TestParse(t *testing.T) {
 					ast.MediaRule{
 						Conditions: []ast.MediaQuery{
 							ast.MediaQuery{Type: "screen", Qualifier: ast.QualifierOnly},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@media (foo: bar) {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{
+								Condition: ast.MediaFeature{
+									Name: "foo",
+									Value: ast.MediaValuePlain{Value: token.Ident{
+										Offset: 13,
+										Value:  "bar",
+									}},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@media ((foo: bar) and (baz: qux)) {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{
+								Condition: ast.MediaOperation{
+									Operator: ast.OperatorAnd,
+									Left: ast.MediaFeature{
+										Name: "foo",
+										Value: ast.MediaValuePlain{Value: token.Ident{
+											Offset: 14,
+											Value:  "bar",
+										}},
+									},
+									Right: ast.MediaFeature{
+										Name: "baz",
+										Value: ast.MediaValuePlain{Value: token.Ident{
+											Offset: 29,
+											Value:  "qux",
+										}},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@media ((foo: bar) and ((baz: qux) or (fez: fud))) {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{
+								Condition: ast.MediaOperation{
+									Operator: ast.OperatorAnd,
+									Left: ast.MediaFeature{
+										Name: "foo",
+										Value: ast.MediaValuePlain{Value: token.Ident{
+											Offset: 14,
+											Value:  "bar",
+										}},
+									},
+									Right: ast.MediaOperation{
+										Operator: ast.OperatorOr,
+										Left: ast.MediaFeature{
+											Name: "baz",
+											Value: ast.MediaValuePlain{Value: token.Ident{
+												Offset: 30,
+												Value:  "qux",
+											}},
+										},
+										Right: ast.MediaFeature{
+											Name: "fez",
+											Value: ast.MediaValuePlain{Value: token.Ident{
+												Offset: 44,
+												Value:  "fud",
+											}},
+										},
+									},
+								},
+							},
 						},
 					},
 				},

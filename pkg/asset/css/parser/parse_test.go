@@ -24,7 +24,6 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.IdSelector{Name: "foo"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -38,7 +37,6 @@ func TestParse(t *testing.T) {
 							ast.IdSelector{Name: "foo"},
 							ast.ClassSelector{Name: "bar"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -54,7 +52,6 @@ func TestParse(t *testing.T) {
 								Right: ast.ClassSelector{Name: "bar"},
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -73,7 +70,6 @@ func TestParse(t *testing.T) {
 								Right: ast.ClassSelector{Name: "baz"},
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -85,7 +81,7 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.RelativeSelector{
-								Combinator: ast.CombinatorDirectDescendant,
+								Combinator: '>',
 								Left: ast.CompoundSelector{
 									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
@@ -93,7 +89,6 @@ func TestParse(t *testing.T) {
 								Right: ast.ClassSelector{Name: "baz"},
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -105,7 +100,7 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.RelativeSelector{
-								Combinator: ast.CombinatorDescendant,
+								Combinator: ' ',
 								Left: ast.CompoundSelector{
 									Left:  ast.IdSelector{Name: "foo"},
 									Right: ast.ClassSelector{Name: "bar"},
@@ -113,7 +108,6 @@ func TestParse(t *testing.T) {
 								Right: ast.ClassSelector{Name: "baz"},
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -126,7 +120,6 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.PseudoSelector{Name: ":foo"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -139,7 +132,6 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.PseudoSelector{Name: "::foo"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -152,7 +144,6 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.TypeSelector{Name: "*"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -165,7 +156,6 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{Name: "foo"},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -178,11 +168,10 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
 								Name:    "foo",
-								Matcher: ast.MatcherEqual,
+								Matcher: "=",
 								Value:   "bar",
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -195,11 +184,10 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
 								Name:    "foo",
-								Matcher: ast.MatcherEqual,
+								Matcher: "=",
 								Value:   "bar",
 							},
 						},
-						Declarations: []ast.Declaration{},
 					},
 				},
 			},
@@ -246,7 +234,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					ast.MediaRule{
 						Conditions: []ast.MediaQuery{
-							ast.MediaQuery{Type: "screen", Qualifier: ast.QualifierOnly},
+							ast.MediaQuery{Type: "screen", Qualifier: "only"},
 						},
 					},
 				},
@@ -280,7 +268,7 @@ func TestParse(t *testing.T) {
 						Conditions: []ast.MediaQuery{
 							ast.MediaQuery{
 								Condition: ast.MediaOperation{
-									Operator: ast.OperatorAnd,
+									Operator: "and",
 									Left: ast.MediaFeature{
 										Name: "foo",
 										Value: ast.MediaValuePlain{Value: token.Ident{
@@ -310,7 +298,7 @@ func TestParse(t *testing.T) {
 						Conditions: []ast.MediaQuery{
 							ast.MediaQuery{
 								Condition: ast.MediaOperation{
-									Operator: ast.OperatorAnd,
+									Operator: "and",
 									Left: ast.MediaFeature{
 										Name: "foo",
 										Value: ast.MediaValuePlain{Value: token.Ident{
@@ -319,7 +307,7 @@ func TestParse(t *testing.T) {
 										}},
 									},
 									Right: ast.MediaOperation{
-										Operator: ast.OperatorOr,
+										Operator: "or",
 										Left: ast.MediaFeature{
 											Name: "baz",
 											Value: ast.MediaValuePlain{Value: token.Ident{
@@ -334,6 +322,123 @@ func TestParse(t *testing.T) {
 												Value:  "fud",
 											}},
 										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@keyframes foo {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.KeyframesRule{Name: "foo"},
+				},
+			},
+		},
+		{
+			`@keyframes "foo" {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.KeyframesRule{Name: "foo"},
+				},
+			},
+		},
+		{
+			`@-webkit-keyframes foo {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.KeyframesRule{Prefix: "-webkit-", Name: "foo"},
+				},
+			},
+		},
+		{
+			`@keyframes "foo" { from {} to {} }`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.KeyframesRule{
+						Name: "foo",
+						Blocks: []ast.KeyframeBlock{
+							ast.KeyframeBlock{Selector: 0},
+							ast.KeyframeBlock{Selector: 1},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@supports (foo: bar) {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.SupportsRule{
+						Condition: ast.SupportsFeature{
+							Declaration: ast.Declaration{
+								Name: "foo",
+								Value: []token.Token{
+									token.Ident{Offset: 16, Value: "bar"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@page {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.PageRule{},
+				},
+			},
+		},
+		{
+			`@page foo {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.PageRule{
+						Selectors: []ast.PageSelector{
+							ast.PageSelector{
+								Type: "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@page foo:left {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.PageRule{
+						Selectors: []ast.PageSelector{
+							ast.PageSelector{
+								Type:    "foo",
+								Classes: []string{":left"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`@page foo:left {color:red}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.PageRule{
+						Selectors: []ast.PageSelector{
+							ast.PageSelector{
+								Type:    "foo",
+								Classes: []string{":left"},
+							},
+						},
+						Components: []ast.PageComponent{
+							ast.PageDeclaration{
+								Declaration: ast.Declaration{
+									Name: "color",
+									Value: []token.Token{
+										token.Ident{Offset: 22, Value: "red"},
 									},
 								},
 							},

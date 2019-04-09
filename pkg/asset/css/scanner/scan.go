@@ -196,7 +196,7 @@ func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 
 		t = token.Percentage{
 			Offset: start,
-			Value:  value,
+			Value:  value / 100,
 		}
 
 	default:

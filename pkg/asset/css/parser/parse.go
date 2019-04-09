@@ -36,12 +36,12 @@ func Parse(tokens []token.Token) (ast.StyleSheet, error) {
 func parseStyleSheet(offset int, tokens []token.Token) (int, []token.Token, ast.StyleSheet, error) {
 	styleSheet := ast.StyleSheet{}
 
-	for len(tokens) > 0 {
-		switch tokens[0].(type) {
+	for {
+		switch peek(tokens, 1).(type) {
 		case token.Whitespace:
-			tokens = tokens[1:]
+			offset, tokens = offset+1, tokens[1:]
 
-		case token.CloseCurly:
+		case token.CloseParen, token.CloseCurly, token.CloseSquare, nil:
 			return offset, tokens, styleSheet, nil
 
 		default:
@@ -59,27 +59,38 @@ func parseStyleSheet(offset int, tokens []token.Token) (int, []token.Token, ast.
 			styleSheet.Rules = append(styleSheet.Rules, rule)
 		}
 	}
-
-	return offset, tokens, styleSheet, nil
 }
 
 func parseRule(offset int, tokens []token.Token) (int, []token.Token, ast.Rule, error) {
-	switch t := tokens[0].(type) {
+	switch t := peek(tokens, 1).(type) {
 	case token.AtKeyword:
 		switch t.Value {
 		case "import":
 			return parseImportRule(offset+1, tokens[1:])
+
 		case "media":
 			return parseMediaRule(offset+1, tokens[1:])
+
+		case "keyframes":
+			return parseKeyframesRule(offset+1, tokens[1:], "")
+		case "-webkit-keyframes":
+			return parseKeyframesRule(offset+1, tokens[1:], "-webkit-")
+
+		case "supports":
+			return parseSupportsRule(offset+1, tokens[1:])
+
+		case "page":
+			return parsePageRule(offset+1, tokens[1:])
+
+		default:
+			return offset, tokens, nil, SyntaxError{
+				Offset:  offset,
+				Message: "unexpected token",
+			}
 		}
 
 	default:
 		return parseStyleRule(offset, tokens)
-	}
-
-	return offset, tokens, nil, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected token",
 	}
 }
 
@@ -88,14 +99,7 @@ func parseImportRule(offset int, tokens []token.Token) (int, []token.Token, ast.
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
-	if len(tokens) == 0 {
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected end of file, expected url",
-		}
-	}
-
-	switch t := tokens[0].(type) {
+	switch t := peek(tokens, 1).(type) {
 	case token.Url:
 		parsed, err := url.Parse(t.Value)
 
@@ -107,8 +111,7 @@ func parseImportRule(offset int, tokens []token.Token) (int, []token.Token, ast.
 		}
 
 		rule.URL = parsed
-		tokens = tokens[1:]
-		offset++
+		offset, tokens = offset+1, tokens[1:]
 
 	case token.String:
 		parsed, err := url.Parse(t.Value)
@@ -121,27 +124,20 @@ func parseImportRule(offset int, tokens []token.Token) (int, []token.Token, ast.
 		}
 
 		rule.URL = parsed
-		tokens = tokens[1:]
-		offset++
+		offset, tokens = offset+1, tokens[1:]
 
 	case token.Function:
 		if t.Value != "url" {
 			return offset, tokens, rule, SyntaxError{
 				Offset:  offset,
-				Message: "unexpected function, expected url()",
+				Message: `unexpected function, expected "url()"`,
 			}
 		}
 
 		offset, tokens = skipWhitespace(offset+1, tokens[1:])
 
-		if len(tokens) == 0 {
-			return offset, tokens, rule, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected end of file",
-			}
-		}
-
-		if t, ok := tokens[0].(token.String); ok {
+		switch t := peek(tokens, 1).(type) {
+		case token.String:
 			parsed, err := url.Parse(t.Value)
 
 			if err != nil {
@@ -152,61 +148,50 @@ func parseImportRule(offset int, tokens []token.Token) (int, []token.Token, ast.
 			}
 
 			rule.URL = parsed
-			tokens = tokens[1:]
-			offset++
-		} else {
+			offset, tokens = offset+1, tokens[1:]
+
+		default:
 			return offset, tokens, rule, SyntaxError{
 				Offset:  offset,
 				Message: "unexpected token, expected string",
 			}
 		}
 
-		if len(tokens) == 0 {
-			return offset, tokens, rule, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected end of file",
-			}
-		}
+		offset, tokens = skipWhitespace(offset, tokens)
 
-		if _, ok := tokens[0].(token.CloseParen); ok {
-			tokens = tokens[1:]
-			offset++
-		} else {
+		switch peek(tokens, 1).(type) {
+		case token.CloseParen:
+			offset, tokens = offset+1, tokens[1:]
+
+		default:
 			return offset, tokens, rule, SyntaxError{
 				Offset:  offset,
-				Message: "unexpected token, expected closing paren",
+				Message: `unexpected token, expected ")"`,
 			}
 		}
 	}
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
-	if len(tokens) > 0 {
-		if _, ok := tokens[0].(token.Semicolon); ok {
-			tokens = tokens[1:]
-			offset++
-		} else {
-			return offset, tokens, rule, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected semicolon",
-			}
+	switch peek(tokens, 1).(type) {
+	case token.Semicolon:
+		return offset + 1, tokens[1:], rule, nil
+
+	case nil:
+		return offset, tokens, rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ";"`,
 		}
 	}
-
-	return offset, tokens, rule, nil
 }
 
 func parseMediaRule(offset int, tokens []token.Token) (int, []token.Token, ast.MediaRule, error) {
 	rule := ast.MediaRule{}
 
-	if len(tokens) == 0 {
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected end of file, expected media query",
-		}
-	}
-
-	offset, tokens, conditions, err := parseMediaQueryList(offset, tokens)
+	offset, tokens, conditions, err := parseMediaQueryList(skipWhitespace(offset, tokens))
 
 	if err != nil {
 		return offset, tokens, rule, err
@@ -216,20 +201,14 @@ func parseMediaRule(offset int, tokens []token.Token) (int, []token.Token, ast.M
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
-	if len(tokens) == 0 {
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected end of file, expected block",
-		}
-	}
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
 
-	if _, ok := tokens[0].(token.OpenCurly); ok {
-		tokens = tokens[1:]
-		offset++
-	} else {
+	default:
 		return offset, tokens, rule, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected opening curly",
+			Message: `unexpected token, expected "{"`,
 		}
 	}
 
@@ -241,32 +220,24 @@ func parseMediaRule(offset int, tokens []token.Token) (int, []token.Token, ast.M
 
 	rule.StyleSheet = styleSheet
 
-	if len(tokens) > 0 {
-		if _, ok := tokens[0].(token.CloseCurly); ok {
-			tokens = tokens[1:]
-			offset++
-		} else {
-			return offset, tokens, rule, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected closing curly",
-			}
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
 		}
 	}
-
-	return offset, tokens, rule, nil
 }
 
 func parseStyleRule(offset int, tokens []token.Token) (int, []token.Token, ast.StyleRule, error) {
 	rule := ast.StyleRule{}
 
-	if len(tokens) == 0 {
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected end of file, expected selector",
-		}
-	}
-
-	offset, tokens, selectors, err := parseSelectorList(offset, tokens)
+	offset, tokens, selectors, err := parseSelectorList(skipWhitespace(offset, tokens))
 
 	if err != nil {
 		return offset, tokens, rule, err
@@ -276,24 +247,18 @@ func parseStyleRule(offset int, tokens []token.Token) (int, []token.Token, ast.S
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
-	if len(tokens) == 0 {
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
 		return offset, tokens, rule, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected end of file, expected block",
+			Message: `unexpected token, expected "{"`,
 		}
 	}
 
-	if _, ok := tokens[0].(token.OpenCurly); ok {
-		tokens = tokens[1:]
-		offset++
-	} else {
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected token, expected opening curly",
-		}
-	}
-
-	offset, tokens, declarations, err := parseDeclarationList(offset, tokens)
+	offset, tokens, declarations, err := parseDeclarationList(skipWhitespace(offset, tokens))
 
 	if err != nil {
 		return offset, tokens, rule, err
@@ -301,109 +266,362 @@ func parseStyleRule(offset int, tokens []token.Token) (int, []token.Token, ast.S
 
 	rule.Declarations = declarations
 
-	if len(tokens) > 0 {
-		if _, ok := tokens[0].(token.CloseCurly); ok {
-			tokens = tokens[1:]
-			offset++
-		} else {
-			return offset, tokens, rule, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected closing curly",
-			}
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
+		}
+	}
+}
+
+func parseKeyframesRule(offset int, tokens []token.Token, prefix string) (int, []token.Token, ast.KeyframesRule, error) {
+	rule := ast.KeyframesRule{Prefix: prefix}
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		rule.Name = t.Value
+
+	case token.String:
+		rule.Name = t.Value
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected string or ident",
 		}
 	}
 
-	return offset, tokens, rule, nil
+	offset, tokens = skipWhitespace(offset+1, tokens[1:])
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "{"`,
+		}
+	}
+
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.Whitespace:
+			offset, tokens = offset +1 ,tokens[1:]
+
+		case token.CloseCurly:
+			return offset + 1, tokens[1:], rule, nil
+
+		default:
+			var (
+				block ast.KeyframeBlock
+				err   error
+			)
+
+			offset, tokens, block, err = parseKeyframeBlock(offset, tokens)
+
+			if err != nil {
+				return offset, tokens, rule, err
+			}
+
+			rule.Blocks = append(rule.Blocks, block)
+		}
+	}
+}
+
+func parseKeyframeBlock(offset int, tokens []token.Token) (int, []token.Token, ast.KeyframeBlock, error) {
+	block := ast.KeyframeBlock{}
+
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		switch t.Value {
+		case "from":
+			block.Selector = 0
+		case "to":
+			block.Selector = 1
+		default:
+			return offset, tokens, block, SyntaxError{
+				Offset:  offset,
+				Message: `unexpected token, expected "from" or "to"`,
+			}
+		}
+
+	case token.Percentage:
+		block.Selector = t.Value
+
+	default:
+		return offset, tokens, block, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "from", "to", or percentage`,
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset+1, tokens[1:])
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		var (
+			declarations []ast.Declaration
+			err          error
+		)
+
+		offset, tokens, declarations, err = parseDeclarationList(skipWhitespace(offset+1, tokens[1:]))
+
+		if err != nil {
+			return offset, tokens, block, err
+		}
+
+		block.Declarations = declarations
+
+	default:
+		return offset, tokens, block, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "{"`,
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], block, nil
+
+	default:
+		return offset, tokens, block, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
+		}
+	}
+}
+
+func parseSupportsRule(offset int, tokens []token.Token) (int, []token.Token, ast.SupportsRule, error) {
+	rule := ast.SupportsRule{}
+
+	offset, tokens, condition, err := parseSupportsCondition(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, rule, err
+	}
+
+	rule.Condition = condition
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "{"`,
+		}
+	}
+
+	offset, tokens, styleSheet, err := parseStyleSheet(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, rule, err
+	}
+
+	rule.StyleSheet = styleSheet
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
+		}
+	}
+}
+
+func parsePageRule(offset int, tokens []token.Token) (int, []token.Token, ast.PageRule, error) {
+	rule := ast.PageRule{}
+
+	offset, tokens, selectors, err := parsePageSelectorList(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, rule, err
+	}
+
+	rule.Selectors = selectors
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "{"`,
+		}
+	}
+
+	offset, tokens, components, err := parsePageComponentList(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, rule, err
+	}
+
+	rule.Components = components
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
+		}
+	}
 }
 
 func parseDeclarationList(offset int, tokens []token.Token) (int, []token.Token, []ast.Declaration, error) {
-	declarations := []ast.Declaration{}
+	var declarations []ast.Declaration
 
-	for len(tokens) > 0 {
-		switch t := tokens[0].(type) {
+	for {
+		switch peek(tokens, 1).(type) {
 		case token.Whitespace, token.Semicolon:
-			tokens = tokens[1:]
-			offset++
+			offset, tokens = offset+1, tokens[1:]
 
 		case token.CloseCurly:
 			return offset, tokens, declarations, nil
 
-		case token.Ident:
+		default:
 			var (
 				declaration ast.Declaration
 				err         error
 			)
 
-			offset, tokens, declaration, err = parseDeclaration(offset+1, tokens[1:], t.Value)
+			offset, tokens, declaration, err = parseDeclaration(offset, tokens)
 
 			if err != nil {
 				return offset, tokens, declarations, err
 			}
 
 			declarations = append(declarations, declaration)
-
-		default:
-			return offset, tokens, declarations, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token",
-			}
 		}
-	}
-
-	return offset, tokens, declarations, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
-func parseDeclaration(offset int, tokens []token.Token, name string) (int, []token.Token, ast.Declaration, error) {
-	declaration := ast.Declaration{Name: name}
+func parseDeclaration(offset int, tokens []token.Token) (int, []token.Token, ast.Declaration, error) {
+	declaration := ast.Declaration{}
 
-	offset, tokens = skipWhitespace(offset, tokens)
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		declaration.Name = t.Value
 
-	if len(tokens) > 0 {
-		if _, ok := tokens[0].(token.Colon); ok {
-			tokens = tokens[1:]
-			offset++
-		} else {
-			return offset, tokens, declaration, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected colon",
-			}
+	default:
+		return offset, tokens, declaration, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ident`,
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset+1, tokens[1:])
+
+	switch peek(tokens, 1).(type) {
+	case token.Colon:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
+		return offset, tokens, declaration, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ":"`,
 		}
 	}
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
-	for len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.CloseCurly:
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.CloseParen, token.CloseCurly, token.CloseSquare, token.Semicolon, nil:
 			return offset, tokens, declaration, nil
 
-		case token.Semicolon:
-			return offset + 1, tokens[1:], declaration, nil
-
 		default:
-			declaration.Value = append(declaration.Value, t)
-			tokens = tokens[1:]
-			offset++
+			var (
+				component []token.Token
+				err error
+			)
+
+			offset, tokens, component, err = parseComponent(offset, tokens)
+
+			if err != nil {
+				return offset, tokens, declaration, err
+			}
+
+			declaration.Value = append(declaration.Value, component...)
 		}
 	}
+}
 
-	return offset, tokens, declaration, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
+func parseComponent(offset int, tokens []token.Token) (int, []token.Token, []token.Token, error) {
+	switch peek(tokens, 1).(type) {
+	case token.OpenParen, token.Function:
+		return parseParenBlock(offset+1, tokens[1:])
+
+	case nil:
+		return offset, tokens, nil, nil
+
+	default:
+		return offset+1, tokens[1:], tokens[:1], nil
+	}
+}
+
+func parseParenBlock(offset int, tokens []token.Token) (int, []token.Token, []token.Token, error) {
+	var block []token.Token
+
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.CloseParen:
+			return offset+1, tokens[1:], block, nil
+
+		case nil:
+			return offset, tokens, block, SyntaxError{
+				Offset: offset,
+				Message: `unexpected token, expected ")"`,
+			}
+
+		default:
+			var (
+				component []token.Token
+				err error
+			)
+
+			offset, tokens, component, err = parseComponent(offset, tokens)
+
+			if err != nil {
+				return offset, tokens, block, err
+			}
+
+			block = append(block, component...)
+		}
 	}
 }
 
 func parseSelectorList(offset int, tokens []token.Token) (int, []token.Token, []ast.Selector, error) {
-	selectors := []ast.Selector{}
+	var selectors []ast.Selector
 
-	for len(tokens) > 0 {
-		switch tokens[0].(type) {
+	for {
+		switch peek(tokens, 1).(type) {
 		case token.Whitespace, token.Comma:
-			tokens = tokens[1:]
-			offset++
+			offset, tokens = offset+1, tokens[1:]
 
 		case token.OpenCurly:
 			return offset, tokens, selectors, nil
@@ -423,11 +641,6 @@ func parseSelectorList(offset int, tokens []token.Token) (int, []token.Token, []
 			selectors = append(selectors, selector)
 		}
 	}
-
-	return offset, tokens, selectors, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
-	}
 }
 
 func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Selector, error) {
@@ -437,11 +650,8 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 		err   error
 	)
 
-	for len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Comma, token.OpenCurly:
-			return offset, tokens, left, nil
-
+	for {
+		switch t := peek(tokens, 1).(type) {
 		case token.Delim:
 			switch t.Value {
 			case '.':
@@ -475,10 +685,7 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 				}
 
 			default:
-				return offset, tokens, left, SyntaxError{
-					Offset:  offset,
-					Message: "unexpected token",
-				}
+				return offset, tokens, left, nil
 			}
 
 		case token.OpenSquare:
@@ -516,21 +723,12 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 					return offset, tokens, left, err
 				}
 			} else {
-				tokens = tokens[1:]
-				offset++
+				offset, tokens = offset+1, tokens[1:]
 			}
 
 		default:
-			return offset, tokens, left, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token",
-			}
+			return offset, tokens, left, nil
 		}
-	}
-
-	return offset, tokens, left, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
@@ -558,46 +756,32 @@ func combineSelectors(left ast.Selector, right ast.Selector) ast.Selector {
 func parseIdSelector(offset int, tokens []token.Token) (int, []token.Token, ast.IdSelector, error) {
 	selector := ast.IdSelector{}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Ident:
-			selector.Name = t.Value
-			return offset + 1, tokens[1:], selector, nil
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		selector.Name = t.Value
+		return offset + 1, tokens[1:], selector, nil
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected id",
-			}
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected id",
 		}
-	}
-
-	return offset, tokens, selector, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
 func parseClassSelector(offset int, tokens []token.Token) (int, []token.Token, ast.ClassSelector, error) {
 	selector := ast.ClassSelector{}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Ident:
-			selector.Name = t.Value
-			return offset + 1, tokens[1:], selector, nil
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		selector.Name = t.Value
+		return offset + 1, tokens[1:], selector, nil
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected class",
-			}
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected class",
 		}
-	}
-
-	return offset, tokens, selector, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
@@ -607,7 +791,7 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 	switch t := peek(tokens, 1).(type) {
 	case token.Ident:
 		selector.Name = t.Value
-		offset, tokens = advance(offset, tokens, 1)
+		offset, tokens = offset+1, tokens[1:]
 
 	default:
 		return offset, tokens, selector, SyntaxError{
@@ -623,166 +807,132 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 	case token.Delim:
 		switch t.Value {
 		case '=':
-			selector.Matcher = ast.MatcherEqual
-			offset, tokens = advance(offset, tokens, 1)
+			selector.Matcher = "="
+			offset, tokens = offset+1, tokens[1:]
 
 		case '~', '|', '^', '$', '*':
-			offset, tokens = advance(offset, tokens, 1)
+			offset, tokens = offset+1, tokens[1:]
 
 			switch u := peek(tokens, 1).(type) {
 			case token.Delim:
 				if u.Value == '=' {
 					switch t.Value {
 					case '~':
-						selector.Matcher = ast.MatcherIncludes
+						selector.Matcher = "~="
 					case '|':
-						selector.Matcher = ast.MatcherDashMatch
+						selector.Matcher = "|="
 					case '^':
-						selector.Matcher = ast.MatcherPrefix
+						selector.Matcher = "^="
 					case '$':
-						selector.Matcher = ast.MatcherSuffix
+						selector.Matcher = "$="
 					case '*':
-						selector.Matcher = ast.MatcherSubstring
+						selector.Matcher = "*="
 					}
 
-					offset, tokens = advance(offset, tokens, 1)
+					offset, tokens = offset+1, tokens[1:]
 				}
 			}
 		}
 	}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.String:
-			selector.Value = t.Value
-			tokens = tokens[1:]
-			offset++
+	switch t := peek(tokens, 1).(type) {
+	case token.String:
+		selector.Value = t.Value
 
-		case token.Ident:
-			selector.Value = t.Value
-			tokens = tokens[1:]
-			offset++
+	case token.Ident:
+		selector.Value = t.Value
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token",
-			}
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected attribute value",
 		}
 	}
 
-	if len(tokens) > 0 {
-		switch tokens[0].(type) {
-		case token.CloseSquare:
-			return offset + 1, tokens[1:], selector, nil
+	offset, tokens = offset+1, tokens[1:]
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected end of attribute selector",
-			}
+	switch peek(tokens, 1).(type) {
+	case token.CloseSquare:
+		return offset + 1, tokens[1:], selector, nil
+
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "]"`,
 		}
-	}
-
-	return offset, tokens, selector, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
 func parseTypeSelector(offset int, tokens []token.Token) (int, []token.Token, ast.TypeSelector, error) {
 	selector := ast.TypeSelector{}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Ident:
-			selector.Name = t.Value
-			return offset + 1, tokens[1:], selector, nil
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		selector.Name = t.Value
+		return offset + 1, tokens[1:], selector, nil
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected type",
-			}
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected type",
 		}
-	}
-
-	return offset, tokens, selector, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
 	}
 }
 
 func parsePseudoSelector(offset int, tokens []token.Token) (int, []token.Token, ast.PseudoSelector, error) {
 	selector := ast.PseudoSelector{Name: ":"}
 
-	if len(tokens) > 0 {
-		switch tokens[0].(type) {
-		case token.Colon:
-			selector.Name += ":"
-			tokens = tokens[1:]
-			offset++
-		}
+	switch peek(tokens, 1).(type) {
+	case token.Colon:
+		selector.Name += ":"
+		offset, tokens = offset+1, tokens[1:]
 	}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Ident:
-			selector.Name += t.Value
-			return offset + 1, tokens[1:], selector, nil
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		selector.Name += t.Value
+		return offset + 1, tokens[1:], selector, nil
 
-		case token.Function:
-			selector.Name += t.Value
-			tokens = tokens[1:]
-			offset++
+	case token.Function:
+		selector.Name += t.Value
+		offset, tokens = offset+1, tokens[1:]
 
-			for len(tokens) > 0 {
-				switch t := tokens[0].(type) {
-				case token.CloseParen:
-					return offset + 1, tokens[1:], selector, nil
-				default:
-					selector.Value = append(selector.Value, t)
-					tokens = tokens[1:]
-					offset++
+		for {
+			switch t := peek(tokens, 1).(type) {
+			case token.CloseParen:
+				return offset + 1, tokens[1:], selector, nil
+
+			case nil:
+				return offset, tokens, selector, SyntaxError{
+					Offset:  offset,
+					Message: `unexpected token, expected ")"`,
 				}
-			}
 
-		default:
-			return offset, tokens, selector, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected ident",
+			default:
+				selector.Value = append(selector.Value, t)
+				offset, tokens = offset+1, tokens[1:]
 			}
 		}
-	}
 
-	return offset, tokens, selector, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected ident",
+		}
 	}
 }
 
 func parseRelativeSelector(offset int, tokens []token.Token, left ast.Selector) (int, []token.Token, ast.RelativeSelector, error) {
 	selector := ast.RelativeSelector{Left: left}
 
-	if len(tokens) > 0 {
-		switch t := tokens[0].(type) {
-		case token.Whitespace:
-			selector.Combinator = ast.CombinatorDescendant
+	switch t := peek(tokens, 1).(type) {
+	case token.Whitespace:
+		selector.Combinator = ' '
 
-		case token.Delim:
-			switch t.Value {
-			case '>':
-				selector.Combinator = ast.CombinatorDirectDescendant
-			case '~':
-				selector.Combinator = ast.CombinatorSibling
-			case '+':
-				selector.Combinator = ast.CombinatorDirectSibling
-			default:
-				return offset, tokens, selector, SyntaxError{
-					Offset:  offset,
-					Message: "unexpected token, expected selector combinator",
-				}
-			}
+	case token.Delim:
+		switch t.Value {
+		case '>', '~', '+':
+			selector.Combinator = t.Value
 
 		default:
 			return offset, tokens, selector, SyntaxError{
@@ -791,7 +941,11 @@ func parseRelativeSelector(offset int, tokens []token.Token, left ast.Selector) 
 			}
 		}
 
-		offset, tokens = skipWhitespace(offset+1, tokens[1:])
+	default:
+		return offset, tokens, selector, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token, expected selector combinator",
+		}
 	}
 
 	var (
@@ -799,7 +953,7 @@ func parseRelativeSelector(offset int, tokens []token.Token, left ast.Selector) 
 		err   error
 	)
 
-	offset, tokens, right, err = parseSelector(offset, tokens)
+	offset, tokens, right, err = parseSelector(skipWhitespace(offset+1, tokens[1:]))
 
 	if err != nil {
 		return offset, tokens, selector, err
@@ -811,12 +965,12 @@ func parseRelativeSelector(offset int, tokens []token.Token, left ast.Selector) 
 }
 
 func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, []ast.MediaQuery, error) {
-	mediaQueries := []ast.MediaQuery{}
+	var mediaQueries []ast.MediaQuery
 
-	for len(tokens) > 0 {
-		switch tokens[0].(type) {
+	for {
+		switch peek(tokens, 1).(type) {
 		case token.Whitespace, token.Comma:
-			offset, tokens = advance(offset, tokens, 1)
+			offset, tokens = offset+1, tokens[1:]
 
 		case token.OpenCurly:
 			return offset, tokens, mediaQueries, nil
@@ -836,11 +990,6 @@ func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, 
 			mediaQueries = append(mediaQueries, mediaQuery)
 		}
 	}
-
-	return offset, tokens, mediaQueries, SyntaxError{
-		Offset:  offset,
-		Message: "unexpected end of file",
-	}
 }
 
 func parseMediaQuery(offset int, tokens []token.Token) (int, []token.Token, ast.MediaQuery, error) {
@@ -849,13 +998,9 @@ func parseMediaQuery(offset int, tokens []token.Token) (int, []token.Token, ast.
 	switch t := peek(tokens, 1).(type) {
 	case token.Ident:
 		switch t.Value {
-		case "not":
-			mediaQuery.Qualifier = ast.QualifierNot
-			offset, tokens = advance(offset, tokens, 1)
-
-		case "only":
-			mediaQuery.Qualifier = ast.QualifierOnly
-			offset, tokens = advance(offset, tokens, 1)
+		case "not", "only":
+			mediaQuery.Qualifier = t.Value
+			offset, tokens = offset+1, tokens[1:]
 		}
 
 	case token.OpenParen:
@@ -891,13 +1036,7 @@ func parseMediaQuery(offset int, tokens []token.Token) (int, []token.Token, ast.
 
 		default:
 			mediaQuery.Type = t.Value
-			offset, tokens = advance(offset, tokens, 1)
-		}
-
-	case nil:
-		return offset, tokens, mediaQuery, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected end of file",
+			offset, tokens = offset+1, tokens[1:]
 		}
 
 	default:
@@ -949,7 +1088,7 @@ func parseMediaCondition(offset int, tokens []token.Token) (int, []token.Token, 
 			return offset, tokens, left, err
 		}
 
-		var operator ast.MediaOperator
+		var operator string
 
 		for {
 			offset, tokens = skipWhitespace(offset, tokens)
@@ -957,34 +1096,22 @@ func parseMediaCondition(offset int, tokens []token.Token) (int, []token.Token, 
 			switch t := peek(tokens, 1).(type) {
 			case token.Ident:
 				switch t.Value {
-				case "and":
-					if operator == 0 || operator == ast.OperatorAnd {
-						operator = ast.OperatorAnd
+				case "and", "or":
+					if operator == "" || operator == t.Value {
+						operator = t.Value
 					} else {
 						return offset, tokens, left, SyntaxError{
 							Offset:  offset,
-							Message: "unexpected token, expected or",
+							Message: `unexpected token, expected "` + operator + `"`,
 						}
 					}
 
-					offset, tokens = advance(offset, tokens, 1)
-
-				case "or":
-					if operator == 0 || operator == ast.OperatorOr {
-						operator = ast.OperatorOr
-					} else {
-						return offset, tokens, left, SyntaxError{
-							Offset:  offset,
-							Message: "unexpected token, expected and",
-						}
-					}
-
-					offset, tokens = advance(offset, tokens, 1)
+					offset, tokens = offset+1, tokens[1:]
 
 				default:
 					return offset, tokens, left, SyntaxError{
 						Offset:  offset,
-						Message: "unexpected token, expected media operator",
+						Message: `unexpected token, expected "and" or "or"`,
 					}
 				}
 
@@ -1018,34 +1145,38 @@ func parseMediaExpression(offset int, tokens []token.Token) (int, []token.Token,
 
 	switch peek(tokens, 1).(type) {
 	case token.OpenParen:
-		var (
-			condition ast.MediaCondition
-			err       error
-		)
-
-		offset, tokens, condition, err = parseMediaCondition(offset+1, tokens[1:])
-
-		if err != nil {
-			return offset, tokens, condition, err
-		}
-
-		offset, tokens = skipWhitespace(offset, tokens)
-
-		switch peek(tokens, 1).(type) {
-		case token.CloseParen:
-			return offset + 1, tokens[1:], condition, nil
-
-		default:
-			return offset, tokens, nil, SyntaxError{
-				Offset:  offset,
-				Message: "unexpected token, expected closing paren",
-			}
-		}
+		offset, tokens = offset+1, tokens[1:]
 
 	default:
 		return offset, tokens, nil, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected opening paren",
+			Message: `unexpected token, expected "("`,
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	var (
+		condition ast.MediaCondition
+		err       error
+	)
+
+	offset, tokens, condition, err = parseMediaCondition(offset, tokens)
+
+	if err != nil {
+		return offset, tokens, condition, err
+	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseParen:
+		return offset + 1, tokens[1:], condition, nil
+
+	default:
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ")"`,
 		}
 	}
 }
@@ -1055,11 +1186,12 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 
 	switch peek(tokens, 1).(type) {
 	case token.OpenParen:
-		offset, tokens = advance(offset, tokens, 1)
+		offset, tokens = offset+1, tokens[1:]
+
 	default:
 		return offset, tokens, feature, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected opening paren",
+			Message: `unexpected token, expected "("`,
 		}
 	}
 
@@ -1068,11 +1200,12 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 	switch t := peek(tokens, 1).(type) {
 	case token.Ident:
 		feature.Name = t.Value
-		offset, tokens = advance(offset, tokens, 1)
+		offset, tokens = offset+1, tokens[1:]
+
 	default:
 		return offset, tokens, feature, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected feature name",
+			Message: "unexpected token, expected ident",
 		}
 	}
 
@@ -1080,11 +1213,12 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 
 	switch peek(tokens, 1).(type) {
 	case token.Colon:
-		offset, tokens = advance(offset, tokens, 1)
+		offset, tokens = offset+1, tokens[1:]
+
 	default:
 		return offset, tokens, feature, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected colon",
+			Message: `unexpected token, expected ":"`,
 		}
 	}
 
@@ -1093,36 +1227,327 @@ func parseMediaFeature(offset int, tokens []token.Token) (int, []token.Token, as
 	switch t := peek(tokens, 1).(type) {
 	case token.Number:
 		feature.Value = ast.MediaValuePlain{Value: t}
-		offset, tokens = advance(offset, tokens, 1)
 
 	case token.Dimension:
 		feature.Value = ast.MediaValuePlain{Value: t}
-		offset, tokens = advance(offset, tokens, 1)
 
 	case token.Ident:
 		feature.Value = ast.MediaValuePlain{Value: t}
-		offset, tokens = advance(offset, tokens, 1)
 
 	default:
 		return offset, tokens, feature, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected colon",
+			Message: `unexpected token, expected number, dimension, or ident`,
 		}
+	}
+
+	offset, tokens = skipWhitespace(offset+1, tokens[1:])
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseParen:
+		offset, tokens = offset+1, tokens[1:]
+	default:
+		return offset, tokens, feature, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ")"`,
+		}
+	}
+
+	return offset, tokens, feature, nil
+}
+
+func parseSupportsCondition(offset int, tokens []token.Token) (int, []token.Token, ast.SupportsCondition, error) {
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		if t.Value == "not" {
+			var (
+				condition ast.SupportsCondition
+				err       error
+			)
+
+			offset, tokens, condition, err = parseSupportsExpression(
+				skipWhitespace(offset+1, tokens[1:]),
+			)
+
+			if err != nil {
+				return offset, tokens, nil, err
+			}
+
+			condition = ast.SupportsNegation{Condition: condition}
+
+			return offset, tokens, condition, nil
+		}
+
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: "unexpected token",
+		}
+
+	default:
+		var (
+			left ast.SupportsCondition
+			err  error
+		)
+
+		offset, tokens, left, err = parseSupportsExpression(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, left, err
+		}
+
+		var operator string
+
+		for {
+			offset, tokens = skipWhitespace(offset, tokens)
+
+			switch t := peek(tokens, 1).(type) {
+			case token.Ident:
+				switch t.Value {
+				case "and", "or":
+					if operator == "" || operator == t.Value {
+						operator = t.Value
+					} else {
+						return offset, tokens, left, SyntaxError{
+							Offset:  offset,
+							Message: `unexpected token, expected "` + operator + `"`,
+						}
+					}
+
+					offset, tokens = offset+1, tokens[1:]
+
+				default:
+					return offset, tokens, left, SyntaxError{
+						Offset:  offset,
+						Message: `unexpected token, expected "and" or "or"`,
+					}
+				}
+
+				offset, tokens = skipWhitespace(offset, tokens)
+
+				var right ast.SupportsCondition
+
+				offset, tokens, right, err = parseSupportsExpression(offset, tokens)
+
+				if err != nil {
+					return offset, tokens, left, err
+				}
+
+				left = ast.SupportsOperation{
+					Operator: operator,
+					Left:     left,
+					Right:    right,
+				}
+
+			default:
+				return offset, tokens, left, nil
+			}
+		}
+	}
+}
+
+func parseSupportsExpression(offset int, tokens []token.Token) (int, []token.Token, ast.SupportsCondition, error) {
+	if offset, tokens, feature, err := parseSupportsFeature(offset, tokens); err == nil {
+		return offset, tokens, feature, nil
+	}
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenParen:
+		offset, tokens = offset+1,tokens[1:]
+
+	default:
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "("`,
+		}
+	}
+
+	var (
+		condition ast.SupportsCondition
+		err       error
+	)
+
+	offset, tokens, condition, err = parseSupportsCondition(offset, tokens)
+
+	if err != nil {
+		return offset, tokens, condition, err
 	}
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
 	switch peek(tokens, 1).(type) {
 	case token.CloseParen:
-		offset, tokens = advance(offset, tokens, 1)
+		return offset + 1, tokens[1:], condition, nil
+
+	default:
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ")"`,
+		}
+	}
+}
+
+func parseSupportsFeature(offset int, tokens []token.Token) (int, []token.Token, ast.SupportsFeature, error) {
+	feature := ast.SupportsFeature{}
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenParen:
+		offset, tokens = offset+1, tokens[1:]
+
 	default:
 		return offset, tokens, feature, SyntaxError{
 			Offset:  offset,
-			Message: "unexpected token, expected opening paren",
+			Message: `unexpected token, expected "("`,
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	var (
+		declaration ast.Declaration
+		err         error
+	)
+
+	offset, tokens, declaration, err = parseDeclaration(offset, tokens)
+
+	if err != nil {
+		return offset, tokens, feature, err
+	}
+
+	feature.Declaration = declaration
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseParen:
+		offset, tokens = offset+1, tokens[1:]
+
+	default:
+		return offset, tokens, feature, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected ")"`,
 		}
 	}
 
 	return offset, tokens, feature, nil
+}
+
+func parsePageSelectorList(offset int, tokens []token.Token) (int, []token.Token, []ast.PageSelector, error) {
+	var selectors []ast.PageSelector
+
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.Whitespace, token.Comma:
+			offset, tokens = offset+1, tokens[1:]
+
+		case token.OpenCurly:
+			return offset, tokens, selectors, nil
+
+		default:
+			var (
+				selector ast.PageSelector
+				err          error
+			)
+
+			offset, tokens, selector, err = parsePageSelector(offset, tokens)
+
+			if err != nil {
+				return offset, tokens, selectors, err
+			}
+
+			selectors = append(selectors, selector)
+		}
+	}
+}
+
+func parsePageSelector(offset int, tokens []token.Token) (int, []token.Token, ast.PageSelector, error) {
+	selector := ast.PageSelector{}
+
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		selector.Type = t.Value
+		offset,tokens=offset+1,tokens[1:]
+	}
+
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.Colon:
+			switch t := peek(tokens, 2).(type) {
+			case token.Ident:
+				switch t.Value {
+				case "left", "right", "first", "blank":
+					selector.Classes = append(selector.Classes, ":" + t.Value)
+					offset, tokens = offset+2,tokens[2:]
+
+				default:
+					return offset, tokens, selector, SyntaxError{
+						Offset: offset,
+						Message: `unexpected token, expected page selector`,
+					}
+				}
+
+			default:
+				return offset, tokens, selector, SyntaxError{
+					Offset: offset,
+					Message: `unexpected token, expected page selector`,
+				}
+			}
+
+		default:
+			return offset, tokens, selector, nil
+		}
+	}
+}
+
+func parsePageComponentList(offset int, tokens []token.Token) (int, []token.Token, []ast.PageComponent, error) {
+	var pageComponents []ast.PageComponent
+
+	for {
+		switch peek(tokens, 1).(type) {
+		case token.Whitespace, token.Semicolon:
+			offset,tokens=offset+1,tokens[1:]
+
+		case token.CloseCurly:
+			return offset, tokens, pageComponents, nil
+
+		default:
+			var (
+				pageComponent ast.PageComponent
+				err error
+			)
+
+			offset, tokens, pageComponent, err = parsePageComponent(offset, tokens)
+
+			if err != nil {
+				return offset, tokens, pageComponents, err
+			}
+
+			pageComponents = append(pageComponents, pageComponent)
+		}
+	}
+}
+
+func parsePageComponent(offset int, tokens []token.Token) (int, []token.Token, ast.PageComponent, error) {
+	switch peek(tokens, 1).(type) {
+	case token.Ident:
+		var (
+			declaration ast.Declaration
+			err error
+		)
+
+		offset, tokens, declaration, err = parseDeclaration(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, nil, err
+		}
+
+		return offset, tokens, ast.PageDeclaration{Declaration: declaration}, nil
+
+	default:
+		return offset, tokens, nil, SyntaxError{
+			Offset: offset,
+			Message: `unexpected token, expected ident`,
+		}
+	}
 }
 
 func peek(tokens []token.Token, n int) token.Token {
@@ -1133,13 +1558,9 @@ func peek(tokens []token.Token, n int) token.Token {
 	return tokens[n-1]
 }
 
-func advance(offset int, tokens []token.Token, n int) (int, []token.Token) {
-	return offset + n, tokens[n:]
-}
-
 func skipWhitespace(offset int, tokens []token.Token) (int, []token.Token) {
 	if _, ok := peek(tokens, 1).(token.Whitespace); ok {
-		return advance(offset, tokens, 1)
+		return offset + 1, tokens[1:]
 	}
 
 	return offset, tokens

@@ -26,8 +26,7 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 	if err != nil {
 		switch err := err.(type) {
 		case parser.SyntaxError:
-			token := tokens[err.Offset]
-			fmt.Printf("%#v\n", token)
+			return nil, fmt.Errorf("%s: %#v", err, tokens[err.Offset])
 		}
 
 		return nil, err

@@ -128,7 +128,7 @@ func TestScan(t *testing.T) {
 		{
 			"123%",
 			[]token.Token{
-				token.Percentage{Offset: 0, Value: 123},
+				token.Percentage{Offset: 0, Value: 1.23},
 			},
 		},
 		{

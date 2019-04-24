@@ -122,13 +122,13 @@ func read(urls []*url.URL, root string) (*asset.Graph, error) {
 	entries := make([]asset.Asset, len(urls))
 
 	for i, url := range urls {
-		asset, err := resolve(url, root, graph)
+		resolved, err := resolve(url, root, graph)
 
 		if err != nil {
 			return nil, err
 		}
 
-		entries[i] = asset
+		entries[i] = resolved
 	}
 
 	if err := compress(graph, entries); err != nil {
@@ -165,14 +165,14 @@ func resolve(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error)
 
 	graph.Add(asset)
 
-	for _, url := range asset.References() {
-		reference, err := resolve(url, root, graph)
+	for _, reference := range asset.References() {
+		resolved, err := resolve(reference.URL(), root, graph)
 
 		if err != nil {
 			return nil, err
 		}
 
-		graph.Reference(asset, reference)
+		graph.Reference(asset, resolved, reference)
 	}
 
 	return asset, nil
@@ -188,7 +188,7 @@ func compress(graph *asset.Graph, entries []asset.Asset) error {
 	visited := make(map[asset.Asset]bool)
 
 	for _, entry := range entries {
-		_, err := merge(graph, partitions, entry, visited)
+		err := merge(graph, partitions, entry, visited)
 
 		if err != nil {
 			return err
@@ -203,34 +203,34 @@ func merge(
 	partitions map[asset.Asset]string,
 	asset asset.Asset,
 	visited map[asset.Asset]bool,
-) (asset.Asset, error) {
+) error {
 	if visited[asset] {
-		return asset, nil
+		return nil
 	}
 
 	visited[asset] = true
 
-	references, _ := graph.Outgoing(asset)
+	assets, references, _ := graph.Outgoing(asset)
 
-	for _, reference := range references {
+	for i, reference := range assets {
 		if visited[reference] {
 			continue
 		}
 
-		reference, err := merge(graph, partitions, reference, visited)
+		err := merge(graph, partitions, reference, visited)
 
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if partitions[asset] == partitions[reference] {
-			if asset.Merge(reference) {
+			if asset.Merge(reference, references[i]) {
 				graph.Merge(asset, reference)
 			}
 		}
 	}
 
-	return asset, nil
+	return nil
 }
 
 func partition(graph *asset.Graph, entries []asset.Asset) (map[asset.Asset]string, error) {
@@ -285,9 +285,9 @@ func mark(
 		return err
 	}
 
-	references, _ := graph.Outgoing(asset)
+	assets, _, _ := graph.Outgoing(asset)
 
-	for _, reference := range references {
+	for _, reference := range assets {
 		err := mark(graph, hashes, reference, data, visited)
 
 		if err != nil {

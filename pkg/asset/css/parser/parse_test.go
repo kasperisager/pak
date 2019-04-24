@@ -241,6 +241,19 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			`@media screen, print {}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.MediaRule{
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{Type: "screen"},
+							ast.MediaQuery{Type: "print"},
+						},
+					},
+				},
+			},
+		},
+		{
 			`@media (foo: bar) {}`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{

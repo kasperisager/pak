@@ -4,9 +4,11 @@ import (
 	"net/url"
 )
 
+type references map[Asset]Reference
+
 type edges struct {
-	incoming map[Asset]bool
-	outgoing map[Asset]bool
+	incoming references
+	outgoing references
 }
 
 type Graph struct {
@@ -46,8 +48,8 @@ func (g *Graph) Add(asset Asset) bool {
 
 	g.nodes[asset] = true
 	g.edges[asset] = edges{
-		incoming: make(map[Asset]bool),
-		outgoing: make(map[Asset]bool),
+		incoming: make(references),
+		outgoing: make(references),
 	}
 
 	return true
@@ -72,13 +74,13 @@ func (g *Graph) Remove(asset Asset) bool {
 	return true
 }
 
-func (g *Graph) Reference(from Asset, to Asset) bool {
+func (g *Graph) Reference(from Asset, to Asset, reference Reference) bool {
 	if !g.nodes[from] || !g.nodes[to] {
 		return false
 	}
 
-	g.edges[from].outgoing[to] = true
-	g.edges[to].incoming[from] = true
+	g.edges[from].outgoing[to] = reference
+	g.edges[to].incoming[from] = reference
 
 	return true
 }
@@ -107,18 +109,20 @@ func (g *Graph) Leaves() []Asset {
 	return leaves
 }
 
-func (g *Graph) Incoming(asset Asset) ([]Asset, bool) {
+func (g *Graph) Incoming(asset Asset) ([]Asset, []Reference, bool) {
 	if edges, ok := g.edges[asset]; ok {
-		incoming := make([]Asset, 0, len(edges.incoming))
+		assets := make([]Asset, 0, len(edges.incoming))
+		references := make([]Reference, 0, len(edges.incoming))
 
-		for asset, _ := range edges.incoming {
-			incoming = append(incoming, asset)
+		for asset, reference := range edges.incoming {
+			assets = append(assets, asset)
+			references = append(references, reference)
 		}
 
-		return incoming, true
+		return assets, references, true
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 func (g *Graph) Indegree(asset Asset) (int, bool) {
@@ -129,18 +133,20 @@ func (g *Graph) Indegree(asset Asset) (int, bool) {
 	return 0, false
 }
 
-func (g *Graph) Outgoing(asset Asset) ([]Asset, bool) {
+func (g *Graph) Outgoing(asset Asset) ([]Asset, []Reference, bool) {
 	if edges, ok := g.edges[asset]; ok {
-		outgoing := make([]Asset, 0, len(edges.outgoing))
+		assets := make([]Asset, 0, len(edges.outgoing))
+		references := make([]Reference, 0, len(edges.outgoing))
 
-		for asset, _ := range edges.outgoing {
-			outgoing = append(outgoing, asset)
+		for asset, reference := range edges.outgoing {
+			assets = append(assets, asset)
+			references = append(references, reference)
 		}
 
-		return outgoing, true
+		return assets, references, true
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 func (g *Graph) Outdegree(asset Asset) (int, bool) {
@@ -168,10 +174,10 @@ func (g *Graph) Merge(target Asset, source Asset) bool {
 		return false
 	}
 
-	references, _ := g.Outgoing(source)
+	assets, references, _ := g.Outgoing(source)
 
-	for _, reference := range references {
-		g.Reference(target, reference)
+	for i, source := range assets {
+		g.Reference(target, source, references[i])
 	}
 
 	g.Remove(source)

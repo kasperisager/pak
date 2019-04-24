@@ -44,6 +44,21 @@ func writeRule(w io.Writer, rule ast.Rule) {
 		}
 
 		fmt.Fprintf(w, "}")
+
+	case ast.MediaRule:
+		for i, mediaQuery := range rule.Conditions {
+			writeMediaQuery(w, mediaQuery)
+
+			if i != 0 {
+				fmt.Fprintf(w, ",")
+			}
+		}
+
+		fmt.Fprintf(w, "{")
+
+		writeStyleSheet(w, rule.StyleSheet)
+
+		fmt.Fprintf(w, "}")
 	}
 }
 
@@ -64,6 +79,9 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 		fmt.Fprintf(w, "%c", selector.Combinator)
 		writeSelector(w, selector.Right)
 	}
+}
+
+func writeMediaQuery(w io.Writer, mediaQuery ast.MediaQuery) {
 }
 
 func writeDeclaration(w io.Writer, declaration ast.Declaration) {

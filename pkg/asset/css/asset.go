@@ -35,24 +35,30 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 	return &cssAsset{url, styleSheet}, nil
 }
 
-type cssAsset struct {
-	url        *url.URL
-	styleSheet ast.StyleSheet
-}
+type (
+	cssAsset struct {
+		url        *url.URL
+		styleSheet ast.StyleSheet
+	}
+
+	cssReference struct {
+		url *url.URL
+	}
+)
 
 func (a *cssAsset) URL() *url.URL {
 	return a.url
 }
 
-func (a *cssAsset) References() []*url.URL {
-	references := []*url.URL{}
+func (a *cssAsset) References() []asset.Reference {
+	var references []asset.Reference
 
 	for _, rule := range a.styleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
 			references = append(
 				references,
-				a.URL().ResolveReference(rule.URL),
+				&cssReference{a.URL().ResolveReference(rule.URL)},
 			)
 
 		default:
@@ -69,7 +75,7 @@ func (a *cssAsset) Data() []byte {
 	return b.Bytes()
 }
 
-func (a *cssAsset) Merge(b asset.Asset) bool {
+func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	switch b := b.(type) {
 	case *cssAsset:
 		needle := b.URL().String()
@@ -97,5 +103,6 @@ func (a *cssAsset) Merge(b asset.Asset) bool {
 	return false
 }
 
-func (a *cssAsset) Hoist() {
+func (r *cssReference) URL() *url.URL {
+	return r.url
 }

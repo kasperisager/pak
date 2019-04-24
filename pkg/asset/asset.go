@@ -6,7 +6,11 @@ import (
 
 type Asset interface {
 	URL() *url.URL
-	References() []*url.URL
+	References() []Reference
 	Data() []byte
-	Merge(Asset) bool
+	Merge(Asset, Reference) bool
+}
+
+type Reference interface {
+	URL() *url.URL
 }

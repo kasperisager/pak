@@ -7,15 +7,16 @@ import (
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
+	"github.com/kasperisager/pak/pkg/asset/css/token"
 	"github.com/kasperisager/pak/pkg/asset/css/parser"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
 func Asset(url *url.URL, data []byte) (asset.Asset, error) {
-	r := bytes.Runes(data)
+	runes := bytes.Runes(data)
 
-	tokens, err := scanner.Scan(r)
+	tokens, err := scanner.Scan(runes)
 
 	if err != nil {
 		return nil, err
@@ -26,23 +27,26 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 	if err != nil {
 		switch err := err.(type) {
 		case parser.SyntaxError:
-			return nil, fmt.Errorf("%s: %#v", err, tokens[err.Offset])
+			t := tokens[err.Offset]
+			return nil, fmt.Errorf("%s: %#v %d", err, t, token.Offset(t))
 		}
 
 		return nil, err
 	}
 
-	return &cssAsset{url, styleSheet}, nil
+	return &cssAsset{url, styleSheet, 0}, nil
 }
 
 type (
 	cssAsset struct {
 		url        *url.URL
 		styleSheet ast.StyleSheet
+		hoistIndex int
 	}
 
 	cssReference struct {
-		url *url.URL
+		url  *url.URL
+		node ast.Node
 	}
 )
 
@@ -58,7 +62,10 @@ func (a *cssAsset) References() []asset.Reference {
 		case ast.ImportRule:
 			references = append(
 				references,
-				&cssReference{a.URL().ResolveReference(rule.URL)},
+				&cssReference{
+					url: a.URL().ResolveReference(rule.URL),
+					node: rule,
+				},
 			)
 
 		default:
@@ -78,14 +85,10 @@ func (a *cssAsset) Data() []byte {
 func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	switch b := b.(type) {
 	case *cssAsset:
-		needle := b.URL().String()
-
 		for i, rule := range a.styleSheet.Rules {
 			switch rule := rule.(type) {
 			case ast.ImportRule:
-				found := a.URL().ResolveReference(rule.URL).String()
-
-				if needle == found {
+				if r.(*cssReference).node == rule {
 					a.styleSheet.Rules = append(
 						a.styleSheet.Rules[:i],
 						append(

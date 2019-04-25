@@ -55,6 +55,7 @@ type (
 
 	String struct {
 		Offset int
+		Mark   rune
 		Value  string
 	}
 
@@ -225,4 +226,51 @@ func (t OpenCurly) String() string {
 func (t CloseCurly) VisitToken(v TokenVisitor) { v.CloseCurly(t) }
 func (t CloseCurly) String() string {
 	return "}"
+}
+
+func Offset(token Token) int {
+	switch t := token.(type) {
+	case Ident:
+		return t.Offset
+	case Function:
+		return t.Offset
+	case AtKeyword:
+		return t.Offset
+	case Hash:
+		return t.Offset
+	case String:
+		return t.Offset
+	case Url:
+		return t.Offset
+	case Delim:
+		return t.Offset
+	case Number:
+		return t.Offset
+	case Percentage:
+		return t.Offset
+	case Dimension:
+		return t.Offset
+	case Whitespace:
+		return t.Offset
+	case Colon:
+		return t.Offset
+	case Semicolon:
+		return t.Offset
+	case Comma:
+		return t.Offset
+	case OpenSquare:
+		return t.Offset
+	case CloseSquare:
+		return t.Offset
+	case OpenParen:
+		return t.Offset
+	case CloseParen:
+		return t.Offset
+	case OpenCurly:
+		return t.Offset
+	case CloseCurly:
+		return t.Offset
+	}
+
+	return -1
 }

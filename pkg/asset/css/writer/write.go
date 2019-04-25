@@ -26,32 +26,32 @@ func writeRule(w io.Writer, rule ast.Rule) {
 
 	case ast.StyleRule:
 		for i, selector := range rule.Selectors {
-			writeSelector(w, selector)
-
 			if i != 0 {
 				fmt.Fprintf(w, ",")
 			}
+
+			writeSelector(w, selector)
 		}
 
 		fmt.Fprintf(w, "{")
 
 		for i, declaration := range rule.Declarations {
-			writeDeclaration(w, declaration)
-
 			if i != 0 {
 				fmt.Fprintf(w, ";")
 			}
+
+			writeDeclaration(w, declaration)
 		}
 
 		fmt.Fprintf(w, "}")
 
 	case ast.MediaRule:
 		for i, mediaQuery := range rule.Conditions {
-			writeMediaQuery(w, mediaQuery)
-
 			if i != 0 {
 				fmt.Fprintf(w, ",")
 			}
+
+			writeMediaQuery(w, mediaQuery)
 		}
 
 		fmt.Fprintf(w, "{")
@@ -70,6 +70,25 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 	case ast.ClassSelector:
 		fmt.Fprintf(w, ".%s", selector.Name)
 
+	case ast.AttributeSelector:
+		fmt.Fprintf(w, "[")
+
+		if selector.Namespace != nil {
+			fmt.Fprintf(w, "%s|", *selector.Namespace)
+		}
+
+		fmt.Fprintf(w, "%s%s%s", selector.Name, selector.Matcher, selector.Value)
+
+		if selector.Modifier != "" {
+			fmt.Fprintf(w, " %s", selector.Modifier)
+		}
+
+		fmt.Fprintf(w, "]")
+
+
+	case ast.TypeSelector:
+		fmt.Fprintf(w, "%s", selector.Name)
+
 	case ast.CompoundSelector:
 		writeSelector(w, selector.Left)
 		writeSelector(w, selector.Right)
@@ -78,6 +97,9 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 		writeSelector(w, selector.Left)
 		fmt.Fprintf(w, "%c", selector.Combinator)
 		writeSelector(w, selector.Right)
+
+	default:
+		fmt.Printf("%#v\n", selector)
 	}
 }
 
@@ -107,7 +129,7 @@ func writeToken(w io.Writer, t token.Token) {
 		fmt.Fprintf(w, "#%s", t.Value)
 
 	case token.String:
-		fmt.Fprintf(w, "\"%s\"", t.Value)
+		fmt.Fprintf(w, "%c%s%[1]c", t.Mark, t.Value)
 
 	case token.Url:
 		fmt.Fprintf(w, "url(%s)", t.Value)

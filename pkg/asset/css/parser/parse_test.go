@@ -113,6 +113,22 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			"foo bar{}",
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.RelativeSelector{
+								Combinator: ' ',
+								Left:  ast.TypeSelector{Name: "foo"},
+								Right: ast.TypeSelector{Name: "bar"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			":foo{}",
 			ast.StyleSheet{
 				Rules: []ast.Rule{
@@ -186,6 +202,40 @@ func TestParse(t *testing.T) {
 								Name:    "foo",
 								Matcher: "=",
 								Value:   "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`[foo=bar i]{}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.AttributeSelector{
+								Name:    "foo",
+								Matcher: "=",
+								Value:   "bar",
+								Modifier: "i",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`[foo=bar s]{}`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.StyleRule{
+						Selectors: []ast.Selector{
+							ast.AttributeSelector{
+								Name:    "foo",
+								Matcher: "=",
+								Value:   "bar",
+								Modifier: "s",
 							},
 						},
 					},

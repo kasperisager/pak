@@ -36,13 +36,13 @@ func TestScan(t *testing.T) {
 		{
 			"\"foo\"",
 			[]token.Token{
-				token.String{Offset: 0, Value: "foo"},
+				token.String{Offset: 0, Mark: '"', Value: "foo"},
 			},
 		},
 		{
 			"'foo'",
 			[]token.Token{
-				token.String{Offset: 0, Value: "foo"},
+				token.String{Offset: 0, Mark: '\'', Value: "foo"},
 			},
 		},
 		{
@@ -55,7 +55,7 @@ func TestScan(t *testing.T) {
 			"url(\"foo\")",
 			[]token.Token{
 				token.Function{Offset: 0, Value: "url"},
-				token.String{Offset: 4, Value: "foo"},
+				token.String{Offset: 4, Mark: '"', Value: "foo"},
 				token.CloseParen{Offset: 9},
 			},
 		},
@@ -63,7 +63,7 @@ func TestScan(t *testing.T) {
 			"url('foo')",
 			[]token.Token{
 				token.Function{Offset: 0, Value: "url"},
-				token.String{Offset: 4, Value: "foo"},
+				token.String{Offset: 4, Mark: '\'', Value: "foo"},
 				token.CloseParen{Offset: 9},
 			},
 		},
@@ -79,7 +79,7 @@ func TestScan(t *testing.T) {
 			"foo(\"bar\")",
 			[]token.Token{
 				token.Function{Offset: 0, Value: "foo"},
-				token.String{Offset: 4, Value: "bar"},
+				token.String{Offset: 4, Mark: '"', Value: "bar"},
 				token.CloseParen{Offset: 9},
 			},
 		},
@@ -168,14 +168,14 @@ func TestScanError(t *testing.T) {
 		{
 			"\"foo",
 			[]token.Token{
-				token.String{Offset: 0, Value: "foo"},
+				token.String{Offset: 0, Mark: '"', Value: "foo"},
 			},
 			SyntaxError{Offset: 4, Message: "unexpected end of file"},
 		},
 		{
 			"'foo",
 			[]token.Token{
-				token.String{Offset: 0, Value: "foo"},
+				token.String{Offset: 0, Mark: '\'', Value: "foo"},
 			},
 			SyntaxError{Offset: 4, Message: "unexpected end of file"},
 		},

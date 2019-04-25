@@ -328,6 +328,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 		case end:
 			t := token.String{
 				Offset: start,
+				Mark:   end,
 				Value:  result.String(),
 			}
 
@@ -358,6 +359,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 
 	t := token.String{
 		Offset: start,
+		Mark:   end,
 		Value:  result.String(),
 	}
 

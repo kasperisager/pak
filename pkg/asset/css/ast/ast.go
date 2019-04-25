@@ -105,16 +105,12 @@ type (
 		Name string
 	}
 
-	AttributeModifiers struct {
-		IgnoreCase bool
-	}
-
 	AttributeSelector struct {
 		Name      string
 		Namespace *string
 		Value     string
 		Matcher   string
-		Modifiers AttributeModifiers
+		Modifier  string
 	}
 
 	TypeSelector struct {

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
@@ -734,8 +735,7 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 
 func startsSelector(t token.Token) bool {
 	switch t := t.(type) {
-	case token.Ident:
-	case token.Colon:
+	case token.Ident, token.Colon:
 		return true
 
 	case token.Delim:
@@ -788,6 +788,8 @@ func parseClassSelector(offset int, tokens []token.Token) (int, []token.Token, a
 func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Token, ast.AttributeSelector, error) {
 	selector := ast.AttributeSelector{}
 
+	offset, tokens = skipWhitespace(offset, tokens)
+
 	switch t := peek(tokens, 1).(type) {
 	case token.Ident:
 		selector.Name = t.Value
@@ -799,6 +801,8 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 			Message: "unexpected token, expected attribute name",
 		}
 	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
 
 	switch t := peek(tokens, 1).(type) {
 	case token.CloseSquare:
@@ -835,9 +839,11 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 		}
 	}
 
+	offset, tokens = skipWhitespace(offset, tokens)
+
 	switch t := peek(tokens, 1).(type) {
 	case token.String:
-		selector.Value = t.Value
+		selector.Value = fmt.Sprintf("%c%s%[1]c", t.Mark, t.Value)
 
 	case token.Ident:
 		selector.Value = t.Value
@@ -849,7 +855,18 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 		}
 	}
 
-	offset, tokens = offset+1, tokens[1:]
+	offset, tokens = skipWhitespace(offset+1, tokens[1:])
+
+	switch t := peek(tokens, 1).(type) {
+	case token.Ident:
+		switch t.Value {
+		case "i", "s":
+			selector.Modifier = t.Value
+			offset, tokens = offset + 1, tokens[1:]
+		}
+	}
+
+	offset, tokens = skipWhitespace(offset, tokens)
 
 	switch peek(tokens, 1).(type) {
 	case token.CloseSquare:

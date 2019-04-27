@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/token"
@@ -46,6 +47,8 @@ func writeRule(w io.Writer, rule ast.Rule) {
 		fmt.Fprintf(w, "}")
 
 	case ast.MediaRule:
+		fmt.Fprintf(w, "@media ")
+
 		for i, mediaQuery := range rule.Conditions {
 			if i != 0 {
 				fmt.Fprintf(w, ",")
@@ -97,13 +100,21 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 		writeSelector(w, selector.Left)
 		fmt.Fprintf(w, "%c", selector.Combinator)
 		writeSelector(w, selector.Right)
-
-	default:
-		fmt.Printf("%#v\n", selector)
 	}
 }
 
 func writeMediaQuery(w io.Writer, mediaQuery ast.MediaQuery) {
+	var parts []string
+
+	if mediaQuery.Qualifier != "" {
+		parts = append(parts, mediaQuery.Qualifier)
+	}
+
+	if mediaQuery.Type != "" {
+		parts = append(parts, mediaQuery.Type)
+	}
+
+	fmt.Fprintf(w, "%s", strings.Join(parts, " "))
 }
 
 func writeDeclaration(w io.Writer, declaration ast.Declaration) {

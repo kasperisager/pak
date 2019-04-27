@@ -201,7 +201,7 @@ func TestParse(t *testing.T) {
 							ast.AttributeSelector{
 								Name:    "foo",
 								Matcher: "=",
-								Value:   "bar",
+								Value:   `"bar"`,
 							},
 						},
 					},

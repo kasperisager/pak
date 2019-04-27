@@ -985,26 +985,35 @@ func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, 
 	var mediaQueries []ast.MediaQuery
 
 	for {
+		offset, tokens = skipWhitespace(offset, tokens)
+
+		var (
+			mediaQuery ast.MediaQuery
+			err        error
+		)
+
+		offset, tokens, mediaQuery, err = parseMediaQuery(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, mediaQueries, err
+		}
+
+		mediaQueries = append(mediaQueries, mediaQuery)
+
+		offset, tokens = skipWhitespace(offset, tokens)
+
 		switch peek(tokens, 1).(type) {
-		case token.Whitespace, token.Comma:
-			offset, tokens = offset+1, tokens[1:]
+		case token.Comma:
+			offset, tokens = offset+1,tokens[1:]
 
 		case token.OpenCurly:
 			return offset, tokens, mediaQueries, nil
 
 		default:
-			var (
-				mediaQuery ast.MediaQuery
-				err        error
-			)
-
-			offset, tokens, mediaQuery, err = parseMediaQuery(offset, tokens)
-
-			if err != nil {
-				return offset, tokens, mediaQueries, err
+			return offset, tokens, mediaQueries, SyntaxError{
+				Offset: offset,
+				Message: "unexpected token",
 			}
-
-			mediaQueries = append(mediaQueries, mediaQuery)
 		}
 	}
 }

@@ -41,7 +41,7 @@ type (
 	cssAsset struct {
 		url        *url.URL
 		styleSheet ast.StyleSheet
-		hoistIndex int
+		importLocation int
 	}
 
 	cssReference struct {
@@ -55,22 +55,12 @@ func (a *cssAsset) URL() *url.URL {
 }
 
 func (a *cssAsset) References() []asset.Reference {
+	base := a.URL()
+
 	var references []asset.Reference
 
 	for _, rule := range a.styleSheet.Rules {
-		switch rule := rule.(type) {
-		case ast.ImportRule:
-			references = append(
-				references,
-				&cssReference{
-					url: a.URL().ResolveReference(rule.URL),
-					node: rule,
-				},
-			)
-
-		default:
-			return references
-		}
+		references = collectReferences(base, rule, references)
 	}
 
 	return references
@@ -85,21 +75,20 @@ func (a *cssAsset) Data() []byte {
 func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	switch b := b.(type) {
 	case *cssAsset:
-		for i, rule := range a.styleSheet.Rules {
-			switch rule := rule.(type) {
-			case ast.ImportRule:
-				if r.(*cssReference).node == rule {
-					a.styleSheet.Rules = append(
-						a.styleSheet.Rules[:i],
-						append(
-							b.styleSheet.Rules,
-							a.styleSheet.Rules[i+1:]...,
-						)...,
-					)
+		n := r.(*cssReference).node
 
-					return true
-				}
-			}
+		switch n := n.(type) {
+		case ast.ImportRule:
+			var ok bool
+
+			a.importLocation, ok = mergeImportRule(
+				n,
+				&a.styleSheet,
+				&b.styleSheet,
+				a.importLocation,
+			)
+
+			return ok
 		}
 	}
 
@@ -108,4 +97,65 @@ func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 
 func (r *cssReference) URL() *url.URL {
 	return r.url
+}
+
+func collectReferences(
+	base *url.URL,
+	node ast.Node,
+	references []asset.Reference,
+) []asset.Reference {
+	switch node := node.(type) {
+	case ast.StyleSheet:
+		for _, rule := range node.Rules {
+			references = collectReferences(base, rule, references)
+		}
+
+	case ast.StyleRule:
+		for _, declaration := range node.Declarations {
+			references = collectReferences(base, declaration, references)
+		}
+
+	case ast.ImportRule:
+		return  append(
+			references,
+			&cssReference{
+				url: base.ResolveReference(node.URL),
+				node: node,
+			},
+		)
+
+	case ast.MediaRule:
+		return collectReferences(base, node.StyleSheet, references)
+
+	case ast.SupportsRule:
+		return collectReferences(base, node.StyleSheet, references)
+	}
+
+	return references
+}
+
+func mergeImportRule(
+	rule ast.ImportRule,
+	source *ast.StyleSheet,
+	target *ast.StyleSheet,
+	location int,
+) (int, bool) {
+	for i, r := range source.Rules {
+		switch r := r.(type) {
+		case ast.ImportRule:
+			if r == rule {
+				source.Rules = append(
+					source.Rules[:i],
+					append(
+						target.Rules,
+						source.Rules[i+1:]...,
+					)...,
+				)
+
+				return i, true
+			}
+		}
+	}
+
+	return -1, false
 }

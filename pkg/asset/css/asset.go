@@ -44,9 +44,9 @@ type (
 		importLocation int
 	}
 
-	cssReference struct {
+	cssImportReference struct {
 		url  *url.URL
-		node ast.Node
+		rule ast.ImportRule
 	}
 )
 
@@ -55,15 +55,7 @@ func (a *cssAsset) URL() *url.URL {
 }
 
 func (a *cssAsset) References() []asset.Reference {
-	base := a.URL()
-
-	var references []asset.Reference
-
-	for _, rule := range a.styleSheet.Rules {
-		references = collectReferences(base, rule, references)
-	}
-
-	return references
+	return collectReferences(a.URL(), a.styleSheet, nil)
 }
 
 func (a *cssAsset) Data() []byte {
@@ -75,14 +67,12 @@ func (a *cssAsset) Data() []byte {
 func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	switch b := b.(type) {
 	case *cssAsset:
-		n := r.(*cssReference).node
-
-		switch n := n.(type) {
-		case ast.ImportRule:
+		switch r := r.(type) {
+		case *cssImportReference:
 			var ok bool
 
 			a.importLocation, ok = mergeImportRule(
-				n,
+				r.rule,
 				&a.styleSheet,
 				&b.styleSheet,
 				a.importLocation,
@@ -95,40 +85,32 @@ func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	return false
 }
 
-func (r *cssReference) URL() *url.URL {
+func (r *cssImportReference) URL() *url.URL {
 	return r.url
 }
 
 func collectReferences(
 	base *url.URL,
-	node ast.Node,
+	styleSheet ast.StyleSheet,
 	references []asset.Reference,
 ) []asset.Reference {
-	switch node := node.(type) {
-	case ast.StyleSheet:
-		for _, rule := range node.Rules {
-			references = collectReferences(base, rule, references)
+	for _, rule := range styleSheet.Rules {
+		switch rule := rule.(type) {
+		case ast.ImportRule:
+			return  append(
+				references,
+				&cssImportReference{
+					url: base.ResolveReference(rule.URL),
+					rule: rule,
+				},
+			)
+
+		case ast.MediaRule:
+			return collectReferences(base, rule.StyleSheet, references)
+
+		case ast.SupportsRule:
+			return collectReferences(base, rule.StyleSheet, references)
 		}
-
-	case ast.StyleRule:
-		for _, declaration := range node.Declarations {
-			references = collectReferences(base, declaration, references)
-		}
-
-	case ast.ImportRule:
-		return  append(
-			references,
-			&cssReference{
-				url: base.ResolveReference(node.URL),
-				node: node,
-			},
-		)
-
-	case ast.MediaRule:
-		return collectReferences(base, node.StyleSheet, references)
-
-	case ast.SupportsRule:
-		return collectReferences(base, node.StyleSheet, references)
 	}
 
 	return references

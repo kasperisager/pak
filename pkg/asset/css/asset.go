@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"path"
+	"path/filepath"
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
@@ -72,9 +74,9 @@ func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 			var ok bool
 
 			a.importLocation, ok = mergeImportRule(
-				r.rule,
-				&a.styleSheet,
-				&b.styleSheet,
+				r,
+				b,
+				a,
 				a.importLocation,
 			)
 
@@ -97,7 +99,7 @@ func collectReferences(
 	for _, rule := range styleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
-			return  append(
+			return append(
 				references,
 				&cssImportReference{
 					url: base.ResolveReference(rule.URL),
@@ -116,21 +118,57 @@ func collectReferences(
 	return references
 }
 
+func rebaseReferences(styleSheet *ast.StyleSheet, from *url.URL, to *url.URL) {
+	for _, rule := range styleSheet.Rules {
+		switch rule := rule.(type) {
+		case ast.ImportRule:
+			*rule.URL = *rebaseUrl(rule.URL, from, to)
+
+		case ast.MediaRule:
+			rebaseReferences(&rule.StyleSheet, from, to)
+		}
+
+	}
+}
+
+func rebaseUrl(reference *url.URL, from *url.URL, to *url.URL) *url.URL {
+	if reference.IsAbs() {
+		return reference
+	}
+
+	from = from.ResolveReference(reference)
+
+	if from.Scheme == to.Scheme && from.Host == to.Host {
+		if path.IsAbs(reference.Path) {
+			return &url.URL{Path: from.Path}
+		}
+
+		path, _ := filepath.Rel(path.Dir(to.Path), from.Path)
+
+		return &url.URL{Path: path}
+	}
+
+	return from
+}
+
+
 func mergeImportRule(
-	rule ast.ImportRule,
-	source *ast.StyleSheet,
-	target *ast.StyleSheet,
+	reference *cssImportReference,
+	from *cssAsset,
+	to *cssAsset,
 	location int,
 ) (int, bool) {
-	for i, r := range source.Rules {
-		switch r := r.(type) {
+	for i, rule := range to.styleSheet.Rules {
+		switch rule := rule.(type) {
 		case ast.ImportRule:
-			if r == rule {
-				source.Rules = append(
-					source.Rules[:i],
+			if rule == reference.rule {
+				rebaseReferences(&from.styleSheet, from.url, to.url)
+
+				to.styleSheet.Rules = append(
+					to.styleSheet.Rules[:i],
 					append(
-						target.Rules,
-						source.Rules[i+1:]...,
+						from.styleSheet.Rules,
+						to.styleSheet.Rules[i+1:]...,
 					)...,
 				)
 

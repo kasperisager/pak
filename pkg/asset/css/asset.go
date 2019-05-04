@@ -36,40 +36,40 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 		return nil, err
 	}
 
-	return &cssAsset{url, styleSheet}, nil
+	return &CSSAsset{url, styleSheet}, nil
 }
 
 type (
-	cssAsset struct {
+	CSSAsset struct {
 		url        *url.URL
-		styleSheet ast.StyleSheet
+		StyleSheet ast.StyleSheet
 	}
 
-	cssImportReference struct {
+	CSSImportReference struct {
 		url  *url.URL
-		rule ast.ImportRule
+		Rule ast.ImportRule
 	}
 )
 
-func (a *cssAsset) URL() *url.URL {
+func (a *CSSAsset) URL() *url.URL {
 	return a.url
 }
 
-func (a *cssAsset) References() []asset.Reference {
-	return collectReferences(a.URL(), a.styleSheet, nil)
+func (a *CSSAsset) References() []asset.Reference {
+	return collectReferences(a.URL(), a.StyleSheet, nil)
 }
 
-func (a *cssAsset) Data() []byte {
+func (a *CSSAsset) Data() []byte {
 	var b bytes.Buffer
-	writer.Write(&b, a.styleSheet)
+	writer.Write(&b, a.StyleSheet)
 	return b.Bytes()
 }
 
-func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
+func (a *CSSAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	switch b := b.(type) {
-	case *cssAsset:
+	case *CSSAsset:
 		switch r := r.(type) {
-		case *cssImportReference:
+		case *CSSImportReference:
 			return mergeImportRule(r, b, a)
 		}
 	}
@@ -77,7 +77,7 @@ func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	return false
 }
 
-func (r *cssImportReference) URL() *url.URL {
+func (r *CSSImportReference) URL() *url.URL {
 	return r.url
 }
 
@@ -91,9 +91,9 @@ func collectReferences(
 		case ast.ImportRule:
 			return append(
 				references,
-				&cssImportReference{
+				&CSSImportReference{
 					url:  base.ResolveReference(rule.URL),
-					rule: rule,
+					Rule: rule,
 				},
 			)
 
@@ -141,21 +141,21 @@ func rebaseUrl(reference *url.URL, from *url.URL, to *url.URL) *url.URL {
 }
 
 func mergeImportRule(
-	reference *cssImportReference,
-	from *cssAsset,
-	to *cssAsset,
+	reference *CSSImportReference,
+	from *CSSAsset,
+	to *CSSAsset,
 ) bool {
-	for i, rule := range to.styleSheet.Rules {
+	for i, rule := range to.StyleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
-			if rule == reference.rule {
-				rebaseReferences(&from.styleSheet, from.url, to.url)
+			if rule == reference.Rule {
+				rebaseReferences(&from.StyleSheet, from.url, to.url)
 
-				to.styleSheet.Rules = append(
-					to.styleSheet.Rules[:i],
+				to.StyleSheet.Rules = append(
+					to.StyleSheet.Rules[:i],
 					append(
-						from.styleSheet.Rules,
-						to.styleSheet.Rules[i+1:]...,
+						from.StyleSheet.Rules,
+						to.StyleSheet.Rules[i+1:]...,
 					)...,
 				)
 

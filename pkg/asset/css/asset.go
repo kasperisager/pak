@@ -9,9 +9,9 @@ import (
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
-	"github.com/kasperisager/pak/pkg/asset/css/token"
 	"github.com/kasperisager/pak/pkg/asset/css/parser"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
+	"github.com/kasperisager/pak/pkg/asset/css/token"
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
@@ -36,14 +36,13 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 		return nil, err
 	}
 
-	return &cssAsset{url, styleSheet, 0}, nil
+	return &cssAsset{url, styleSheet}, nil
 }
 
 type (
 	cssAsset struct {
 		url        *url.URL
 		styleSheet ast.StyleSheet
-		importLocation int
 	}
 
 	cssImportReference struct {
@@ -71,16 +70,7 @@ func (a *cssAsset) Merge(b asset.Asset, r asset.Reference) bool {
 	case *cssAsset:
 		switch r := r.(type) {
 		case *cssImportReference:
-			var ok bool
-
-			a.importLocation, ok = mergeImportRule(
-				r,
-				b,
-				a,
-				a.importLocation,
-			)
-
-			return ok
+			return mergeImportRule(r, b, a)
 		}
 	}
 
@@ -102,7 +92,7 @@ func collectReferences(
 			return append(
 				references,
 				&cssImportReference{
-					url: base.ResolveReference(rule.URL),
+					url:  base.ResolveReference(rule.URL),
 					rule: rule,
 				},
 			)
@@ -127,7 +117,6 @@ func rebaseReferences(styleSheet *ast.StyleSheet, from *url.URL, to *url.URL) {
 		case ast.MediaRule:
 			rebaseReferences(&rule.StyleSheet, from, to)
 		}
-
 	}
 }
 
@@ -151,13 +140,11 @@ func rebaseUrl(reference *url.URL, from *url.URL, to *url.URL) *url.URL {
 	return from
 }
 
-
 func mergeImportRule(
 	reference *cssImportReference,
 	from *cssAsset,
 	to *cssAsset,
-	location int,
-) (int, bool) {
+) bool {
 	for i, rule := range to.styleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
@@ -172,10 +159,10 @@ func mergeImportRule(
 					)...,
 				)
 
-				return i, true
+				return true
 			}
 		}
 	}
 
-	return -1, false
+	return false
 }

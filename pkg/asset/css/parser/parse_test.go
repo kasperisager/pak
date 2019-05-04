@@ -120,8 +120,8 @@ func TestParse(t *testing.T) {
 						Selectors: []ast.Selector{
 							ast.RelativeSelector{
 								Combinator: ' ',
-								Left:  ast.TypeSelector{Name: "foo"},
-								Right: ast.TypeSelector{Name: "bar"},
+								Left:       ast.TypeSelector{Name: "foo"},
+								Right:      ast.TypeSelector{Name: "bar"},
 							},
 						},
 					},
@@ -215,9 +215,9 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
-								Name:    "foo",
-								Matcher: "=",
-								Value:   "bar",
+								Name:     "foo",
+								Matcher:  "=",
+								Value:    "bar",
 								Modifier: "i",
 							},
 						},
@@ -232,9 +232,9 @@ func TestParse(t *testing.T) {
 					ast.StyleRule{
 						Selectors: []ast.Selector{
 							ast.AttributeSelector{
-								Name:    "foo",
-								Matcher: "=",
-								Value:   "bar",
+								Name:     "foo",
+								Matcher:  "=",
+								Value:    "bar",
 								Modifier: "s",
 							},
 						},

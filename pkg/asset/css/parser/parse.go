@@ -862,7 +862,7 @@ func parseAttributeSelector(offset int, tokens []token.Token) (int, []token.Toke
 		switch t.Value {
 		case "i", "s":
 			selector.Modifier = t.Value
-			offset, tokens = offset + 1, tokens[1:]
+			offset, tokens = offset+1, tokens[1:]
 		}
 	}
 
@@ -1004,14 +1004,14 @@ func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, 
 
 		switch peek(tokens, 1).(type) {
 		case token.Comma:
-			offset, tokens = offset+1,tokens[1:]
+			offset, tokens = offset+1, tokens[1:]
 
 		case token.OpenCurly:
 			return offset, tokens, mediaQueries, nil
 
 		default:
 			return offset, tokens, mediaQueries, SyntaxError{
-				Offset: offset,
+				Offset:  offset,
 				Message: "unexpected token",
 			}
 		}

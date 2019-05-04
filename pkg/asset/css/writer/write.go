@@ -88,7 +88,6 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 
 		fmt.Fprintf(w, "]")
 
-
 	case ast.TypeSelector:
 		fmt.Fprintf(w, "%s", selector.Name)
 

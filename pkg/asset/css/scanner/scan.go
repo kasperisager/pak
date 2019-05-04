@@ -34,7 +34,7 @@ func Scan(runes []rune) (tokens []token.Token, err error) {
 
 // See: https://drafts.csswg.org/css-syntax/#consume-token
 func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
-	switch runes[0] {
+	switch peek(runes, 1) {
 	case '+', '.':
 		if startsNumber(runes) {
 			return scanNumeric(offset, runes, tokens)
@@ -83,7 +83,7 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 		}
 
 	case '/':
-		if len(runes) > 1 && runes[1] == '*' {
+		if peek(runes, 2) == '*' {
 			return scanComment(offset+2, runes[2:], tokens)
 		}
 
@@ -116,24 +116,24 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 
 	default:
 		switch {
-		case isDigit(runes[0]):
+		case isDigit(peek(runes, 1)):
 			return scanNumeric(offset, runes, tokens)
 
-		case isNameStart(runes[0]):
+		case isNameStart(peek(runes, 1)):
 			return scanIdent(offset, runes, tokens)
 
-		case isWhitespace(runes[0]):
+		case isWhitespace(peek(runes, 1)):
 			return scanWhitespace(offset, runes, tokens)
 		}
 	}
 
-	return offset + 1, runes[1:], append(tokens, token.Delim{Offset: offset, Value: runes[0]}), nil
+	return offset + 1, runes[1:], append(tokens, token.Delim{Offset: offset, Value: peek(runes, 1)}), nil
 }
 
 func scanWhitespace(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
 
-	for len(runes) > 0 && isWhitespace(runes[0]) {
+	for isWhitespace(peek(runes, 1)) {
 		runes = runes[1:]
 		offset++
 	}
@@ -148,7 +148,7 @@ func scanWhitespace(offset int, runes []rune, tokens []token.Token) (int, []rune
 // See: https://drafts.csswg.org/css-syntax/#consume-comments
 func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	for len(runes) > 0 {
-		if len(runes) > 1 && runes[0] == '*' && runes[1] == '/' {
+		if peek(runes, 1) == '*' && peek(runes, 2) == '/' {
 			return offset + 2, runes[2:], tokens, nil
 		}
 
@@ -190,7 +190,7 @@ func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 			Unit:    name,
 		}
 
-	case len(runes) > 0 && runes[0] == '%':
+	case peek(runes, 1) == '%':
 		runes = runes[1:]
 		offset++
 
@@ -215,7 +215,7 @@ func scanNumber(offset int, runes []rune) (int, []rune, float64, bool) {
 	value := 0.0
 	sign := 1.0
 
-	switch runes[0] {
+	switch peek(runes, 1) {
 	case '+':
 		runes = runes[1:]
 		offset++
@@ -227,8 +227,8 @@ func scanNumber(offset int, runes []rune) (int, []rune, float64, bool) {
 	}
 
 	for len(runes) > 0 {
-		if isDigit(runes[0]) {
-			value = 10*value + float64(runes[0]-'0')
+		if isDigit(peek(runes, 1)) {
+			value = 10*value + float64(peek(runes, 1)-'0')
 			runes = runes[1:]
 			offset++
 		} else {
@@ -256,8 +256,8 @@ func scanFraction(offset int, runes []rune, base float64) (int, []rune, float64)
 	digits := 0
 
 	for len(runes) > 0 {
-		if isDigit(runes[0]) {
-			value = 10*value + float64(runes[0]-'0')
+		if isDigit(peek(runes, 1)) {
+			value = 10*value + float64(peek(runes, 1)-'0')
 			digits++
 			runes = runes[1:]
 			offset++
@@ -279,7 +279,7 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 	value := 0
 	sign := -1
 
-	switch runes[0] {
+	switch peek(runes, 1) {
 	case '+':
 		runes = runes[1:]
 		offset++
@@ -290,8 +290,8 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 	}
 
 	for len(runes) > 0 {
-		if isDigit(runes[0]) {
-			value = 10*value + int(runes[0]-'0')
+		if isDigit(peek(runes, 1)) {
+			value = 10*value + int(peek(runes, 1)-'0')
 			runes = runes[1:]
 			offset++
 		} else {
@@ -305,14 +305,14 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 // See: https://drafts.csswg.org/css-syntax/#consume-a-string-token
 func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
-	end := runes[0]
+	end := peek(runes, 1)
 	runes = runes[1:]
 	offset++
 
 	var result strings.Builder
 
 	for len(runes) > 0 {
-		next := runes[0]
+		next := peek(runes, 1)
 
 		if isNewline(next) {
 			return offset, runes, tokens, SyntaxError{
@@ -335,7 +335,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 			return offset, runes, append(tokens, t), nil
 
 		case '\\':
-			if len(runes) == 0 || isNewline(runes[1]) {
+			if len(runes) == 0 || isNewline(peek(runes, 2)) {
 				break
 			}
 
@@ -375,8 +375,8 @@ func scanName(offset int, runes []rune) (int, []rune, string, error) {
 
 	for len(runes) > 0 {
 		switch {
-		case isName(runes[0]):
-			result.WriteRune(runes[0])
+		case isName(peek(runes, 1)):
+			result.WriteRune(peek(runes, 1))
 			runes = runes[1:]
 			offset++
 
@@ -404,14 +404,14 @@ func scanName(offset int, runes []rune) (int, []rune, string, error) {
 
 // See: https://drafts.csswg.org/css-syntax/#consume-escaped-code-point
 func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
-	if isHexDigit(runes[0]) {
-		code := hexValue(runes[0])
+	if isHexDigit(peek(runes, 1)) {
+		code := hexValue(peek(runes, 1))
 		runes = runes[1:]
 		offset++
 
 		for i := 0; len(runes) > 0 && i < 5; i++ {
-			if isHexDigit(runes[0]) {
-				code = 0x10*code + hexValue(runes[0])
+			if isHexDigit(peek(runes, 1)) {
+				code = 0x10*code + hexValue(peek(runes, 1))
 				runes = runes[1:]
 				offset++
 			} else {
@@ -419,7 +419,7 @@ func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
 			}
 		}
 
-		if len(runes) > 0 && isWhitespace(runes[0]) {
+		if isWhitespace(peek(runes, 1)) {
 			runes = runes[1:]
 			offset++
 		}
@@ -433,7 +433,7 @@ func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
 		return offset, runes, value, nil
 	}
 
-	value := runes[0]
+	value := peek(runes, 1)
 
 	if len(runes) == 0 {
 		value = 0xfffd
@@ -459,17 +459,17 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 
 	var t token.Token
 
-	if len(runes) > 0 && runes[0] == '(' {
+	if peek(runes, 1) == '(' {
 		runes = runes[1:]
 		offset++
 
 		if strings.EqualFold(name, "url") {
-			for len(runes) > 0 && isWhitespace(runes[0]) {
+			for isWhitespace(peek(runes, 1)) {
 				runes = runes[1:]
 				offset++
 			}
 
-			if len(runes) == 0 || (runes[0] != '"' && runes[0] != '\'') {
+			if len(runes) == 0 || (peek(runes, 1) != '"' && peek(runes, 1) != '\'') {
 				return scanUrl(offset, runes, tokens, start)
 			}
 		}
@@ -490,7 +490,7 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 
 // See: https://drafts.csswg.org/css-syntax/#consume-url-token
 func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []rune, []token.Token, error) {
-	for len(runes) > 0 && isWhitespace(runes[0]) {
+	for isWhitespace(peek(runes, 1)) {
 		runes = runes[1:]
 		offset++
 	}
@@ -498,10 +498,10 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 	var result strings.Builder
 
 	for len(runes) > 0 {
-		if isWhitespace(runes[0]) {
+		if isWhitespace(peek(runes, 1)) {
 			position := offset
 
-			for len(runes) > 0 && isWhitespace(runes[0]) {
+			for isWhitespace(peek(runes, 1)) {
 				runes = runes[1:]
 				offset++
 			}
@@ -511,29 +511,20 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 				Value:  result.String(),
 			}
 
-			if len(runes) > 0 {
-				if runes[0] == ')' {
-					runes = runes[1:]
-					offset++
+			if peek(runes, 1) == ')' {
+				runes = runes[1:]
+				offset++
 
-					return offset, runes, append(tokens, t), nil
-				}
-
-				offset, runes = scanBadUrl(offset, runes)
-
-				return offset, runes, tokens, SyntaxError{
-					Offset:  position,
-					Message: "unexpected whitespace",
-				}
+				return offset, runes, append(tokens, t), nil
 			}
 
-			return offset, runes, append(tokens, t), SyntaxError{
-				Offset:  offset,
-				Message: "unexpected end of file",
+			return offset, runes, tokens, SyntaxError{
+				Offset:  position,
+				Message: "unexpected whitespace",
 			}
 		}
 
-		switch runes[0] {
+		switch peek(runes, 1) {
 		case ')':
 			t := token.Url{
 				Offset: start,
@@ -557,30 +548,30 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 
 				result.WriteRune(code)
 			} else {
-				result.WriteRune(runes[0])
+				result.WriteRune(peek(runes, 1))
 				runes = runes[1:]
 				offset++
 			}
 
 		case '"', '\'':
-			end := runes[0]
+			end := peek(runes, 1)
 			runes = runes[1:]
 			offset++
 
 			for len(runes) > 0 {
-				if runes[0] == end {
+				if peek(runes, 1) == end {
 					runes = runes[1:]
 					offset++
 					break
 				}
 
-				result.WriteRune(runes[0])
+				result.WriteRune(peek(runes, 1))
 				runes = runes[1:]
 				offset++
 			}
 
 		default:
-			result.WriteRune(runes[0])
+			result.WriteRune(peek(runes, 1))
 			runes = runes[1:]
 			offset++
 		}
@@ -595,29 +586,6 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 		Offset:  offset,
 		Message: "unexpected end of file",
 	}
-}
-
-func scanBadUrl(offset int, runes []rune) (int, []rune) {
-	for len(runes) > 0 {
-		switch runes[0] {
-		case ')':
-			return offset + 1, runes[1:]
-		case '\\':
-			if len(runes) > 1 && runes[1] == ')' {
-				runes = runes[2:]
-				offset += 2
-			} else {
-				runes = runes[1:]
-				offset++
-			}
-
-		default:
-			runes = runes[1:]
-			offset++
-		}
-	}
-
-	return offset, runes
 }
 
 func isBetween(rune rune, lower rune, upper rune) bool {
@@ -712,58 +680,54 @@ func hexValue(rune rune) int {
 
 // See: https://drafts.csswg.org/css-syntax/#would-start-an-identifier
 func startsIdentifier(runes []rune) bool {
-	n := len(runes)
-
-	if n == 0 {
-		return false
-	}
-
-	switch runes[0] {
+	switch peek(runes, 1) {
 	case '-':
-		return n > 1 && isNameStart(runes[1]) || n > 1 && runes[1] == '-' || startsEscape(runes)
+		return isNameStart(peek(runes, 2)) || peek(runes, 2) == '-' || startsEscape(runes)
 
 	case '\\':
 		return startsEscape(runes[1:])
 	}
 
-	return isNameStart(runes[0])
+	return isNameStart(peek(runes, 1))
 }
 
 // See: https://drafts.csswg.org/css-syntax/#starts-with-a-valid-escape
 func startsEscape(runes []rune) bool {
-	return len(runes) > 1 && runes[0] == '\\' && !isNewline(runes[1])
+	return peek(runes, 1) == '\\' && !isNewline(peek(runes, 2))
 }
 
 // See: https://drafts.csswg.org/css-syntax/#starts-with-a-number
 func startsNumber(runes []rune) bool {
-	n := len(runes)
-
-	if n == 0 {
-		return false
-	}
-
-	switch runes[0] {
+	switch peek(runes, 1) {
 	case '+', '-':
-		return n > 1 && isDigit(runes[1]) || n > 2 && runes[1] == '.' && isDigit(runes[2])
+		return isDigit(peek(runes, 2)) || peek(runes, 2) == '.' && isDigit(peek(runes, 3))
 	case '.':
-		return n > 1 && isDigit(runes[1])
+		return isDigit(peek(runes, 2))
 	}
 
-	return isDigit(runes[0])
+	return isDigit(peek(runes, 1))
 }
 
 func startsFraction(runes []rune) bool {
-	return len(runes) > 1 && runes[0] == '.' && isDigit(runes[1])
+	return peek(runes, 1) == '.' && isDigit(peek(runes, 2))
 }
 
 func startsExponent(runes []rune) bool {
-	if len(runes) > 1 && (runes[0] == 'E' || runes[0] == 'e') {
-		if runes[1] == '+' || runes[1] == '-' {
-			return len(runes) > 2 && isDigit(runes[2])
+	if peek(runes, 1) == 'E' || peek(runes, 1) == 'e' {
+		if peek(runes, 2) == '+' || peek(runes, 2) == '-' {
+			return isDigit(peek(runes, 3))
 		}
 
-		return isDigit(runes[1])
+		return isDigit(peek(runes, 2))
 	}
 
 	return false
+}
+
+func peek(runes []rune, n int) rune {
+	if len(runes) < n {
+		return -1
+	}
+
+	return runes[n-1]
 }

@@ -134,8 +134,7 @@ func scanWhitespace(offset int, runes []rune, tokens []token.Token) (int, []rune
 	start := offset
 
 	for isWhitespace(peek(runes, 1)) {
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 	}
 
 	t := token.Whitespace{
@@ -152,8 +151,7 @@ func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 			return offset + 2, runes[2:], tokens, nil
 		}
 
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 	}
 
 	return offset, runes, tokens, SyntaxError{
@@ -191,8 +189,7 @@ func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 		}
 
 	case peek(runes, 1) == '%':
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 
 		t = token.Percentage{
 			Offset: start,
@@ -217,20 +214,17 @@ func scanNumber(offset int, runes []rune) (int, []rune, float64, bool) {
 
 	switch peek(runes, 1) {
 	case '+':
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 
 	case '-':
 		sign = -1
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 	}
 
 	for len(runes) > 0 {
 		if isDigit(peek(runes, 1)) {
 			value = 10*value + float64(peek(runes, 1)-'0')
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 		} else {
 			break
 		}
@@ -259,8 +253,7 @@ func scanFraction(offset int, runes []rune, base float64) (int, []rune, float64)
 		if isDigit(peek(runes, 1)) {
 			value = 10*value + float64(peek(runes, 1)-'0')
 			digits++
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 		} else {
 			break
 		}
@@ -281,19 +274,17 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 
 	switch peek(runes, 1) {
 	case '+':
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
+
 	case '-':
-		runes = runes[1:]
-		offset++
 		sign = 1
+		offset, runes = offset+1,runes[1:]
 	}
 
 	for len(runes) > 0 {
 		if isDigit(peek(runes, 1)) {
 			value = 10*value + int(peek(runes, 1)-'0')
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 		} else {
 			break
 		}
@@ -306,8 +297,7 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
 	end := peek(runes, 1)
-	runes = runes[1:]
-	offset++
+	offset, runes = offset+1,runes[1:]
 
 	var result strings.Builder
 
@@ -321,8 +311,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 			}
 		}
 
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 
 		switch next {
 		case end:
@@ -377,8 +366,7 @@ func scanName(offset int, runes []rune) (int, []rune, string, error) {
 		switch {
 		case isName(peek(runes, 1)):
 			result.WriteRune(peek(runes, 1))
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 
 		case startsEscape(runes):
 			var (
@@ -406,22 +394,19 @@ func scanName(offset int, runes []rune) (int, []rune, string, error) {
 func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
 	if isHexDigit(peek(runes, 1)) {
 		code := hexValue(peek(runes, 1))
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 
 		for i := 0; len(runes) > 0 && i < 5; i++ {
 			if isHexDigit(peek(runes, 1)) {
 				code = 0x10*code + hexValue(peek(runes, 1))
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 			} else {
 				break
 			}
 		}
 
 		if isWhitespace(peek(runes, 1)) {
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 		}
 
 		value := rune(code)
@@ -460,13 +445,11 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 	var t token.Token
 
 	if peek(runes, 1) == '(' {
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 
 		if strings.EqualFold(name, "url") {
 			for isWhitespace(peek(runes, 1)) {
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 			}
 
 			if len(runes) == 0 || (peek(runes, 1) != '"' && peek(runes, 1) != '\'') {
@@ -491,8 +474,7 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 // See: https://drafts.csswg.org/css-syntax/#consume-url-token
 func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []rune, []token.Token, error) {
 	for isWhitespace(peek(runes, 1)) {
-		runes = runes[1:]
-		offset++
+		offset, runes = offset+1,runes[1:]
 	}
 
 	var result strings.Builder
@@ -502,8 +484,7 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 			position := offset
 
 			for isWhitespace(peek(runes, 1)) {
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 			}
 
 			t := token.Url{
@@ -512,8 +493,7 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 			}
 
 			if peek(runes, 1) == ')' {
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 
 				return offset, runes, append(tokens, t), nil
 			}
@@ -549,31 +529,26 @@ func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []
 				result.WriteRune(code)
 			} else {
 				result.WriteRune(peek(runes, 1))
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 			}
 
 		case '"', '\'':
 			end := peek(runes, 1)
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 
 			for len(runes) > 0 {
 				if peek(runes, 1) == end {
-					runes = runes[1:]
-					offset++
+					offset, runes = offset+1,runes[1:]
 					break
 				}
 
 				result.WriteRune(peek(runes, 1))
-				runes = runes[1:]
-				offset++
+				offset, runes = offset+1,runes[1:]
 			}
 
 		default:
 			result.WriteRune(peek(runes, 1))
-			runes = runes[1:]
-			offset++
+			offset, runes = offset+1,runes[1:]
 		}
 	}
 
@@ -624,12 +599,12 @@ func isWhitespace(rune rune) bool {
 
 // See: https://drafts.csswg.org/css-syntax/#uppercase-letter
 func isUppercaseLetter(rune rune) bool {
-	return rune >= 'A' && rune <= 'Z'
+	return isBetween(rune, 'A', 'Z')
 }
 
 // See: https://drafts.csswg.org/css-syntax/#lowercase-letter
 func isLowercaseLetter(rune rune) bool {
-	return rune >= 'a' && rune <= 'z'
+	return isBetween(rune, 'a', 'z')
 }
 
 // See: https://drafts.csswg.org/css-syntax/#letter
@@ -654,7 +629,7 @@ func isName(rune rune) bool {
 
 // See: https://drafts.csswg.org/css-syntax/#non-printable-code-point
 func isNonPrintable(rune rune) bool {
-	return isBetween(rune, 0x0000, 0x0008) || rune == 0x000B || isBetween(rune, 0x000E, 0x001F) || rune == 0x007F
+	return isBetween(rune, 0x0000, 0x0008) || rune == 0x000b || isBetween(rune, 0x000e, 0x001f) || rune == 0x007f
 }
 
 // See: https://infra.spec.whatwg.org/#surrogate

@@ -1,9 +1,5 @@
 package token
 
-import (
-	"fmt"
-)
-
 type (
 	Token interface {
 		VisitToken(TokenVisitor)
@@ -129,104 +125,44 @@ type (
 )
 
 func (t Ident) VisitToken(v TokenVisitor) { v.Ident(t) }
-func (t Ident) String() string {
-	return t.Value
-}
 
 func (t Function) VisitToken(v TokenVisitor) { v.Function(t) }
-func (t Function) String() string {
-	return t.Value + "("
-}
 
 func (t AtKeyword) VisitToken(v TokenVisitor) { v.AtKeyword(t) }
-func (t AtKeyword) String() string {
-	return "@" + t.Value
-}
 
 func (t Hash) VisitToken(v TokenVisitor) { v.Hash(t) }
-func (t Hash) String() string {
-	return "#" + t.Value
-}
 
 func (t String) VisitToken(v TokenVisitor) { v.String(t) }
-func (t String) String() string {
-	return fmt.Sprintf("\"%s\"", t.Value)
-}
 
 func (t Url) VisitToken(v TokenVisitor) { v.Url(t) }
-func (t Url) String() string {
-	return fmt.Sprintf("url(%s)", t.Value)
-}
 
 func (t Delim) VisitToken(v TokenVisitor) { v.Delim(t) }
-func (t Delim) String() string {
-	return string(t.Value)
-}
 
 func (t Number) VisitToken(v TokenVisitor) { v.Number(t) }
-func (t Number) String() string {
-	return fmt.Sprintf("%f", t.Value)
-}
 
 func (t Percentage) VisitToken(v TokenVisitor) { v.Percentage(t) }
-func (t Percentage) String() string {
-	return fmt.Sprintf("%f%%", t.Value)
-}
 
 func (t Dimension) VisitToken(v TokenVisitor) { v.Dimension(t) }
-func (t Dimension) String() string {
-	return fmt.Sprintf("%f%s", t.Value, t.Unit)
-}
 
 func (t Whitespace) VisitToken(v TokenVisitor) { v.Whitespace(t) }
-func (t Whitespace) String() string {
-	return "-"
-}
 
 func (t Colon) VisitToken(v TokenVisitor) { v.Colon(t) }
-func (t Colon) String() string {
-	return ":"
-}
 
 func (t Semicolon) VisitToken(v TokenVisitor) { v.Semicolon(t) }
-func (t Semicolon) String() string {
-	return ";"
-}
 
 func (t Comma) VisitToken(v TokenVisitor) { v.Comma(t) }
-func (t Comma) String() string {
-	return ","
-}
 
 func (t OpenSquare) VisitToken(v TokenVisitor) { v.OpenSquare(t) }
-func (t OpenSquare) String() string {
-	return "["
-}
 
 func (t CloseSquare) VisitToken(v TokenVisitor) { v.CloseSquare(t) }
-func (t CloseSquare) String() string {
-	return "]"
-}
 
 func (t OpenParen) VisitToken(v TokenVisitor) { v.OpenParen(t) }
-func (t OpenParen) String() string {
-	return "("
-}
 
 func (t CloseParen) VisitToken(v TokenVisitor) { v.CloseParen(t) }
-func (t CloseParen) String() string {
-	return ")"
-}
 
 func (t OpenCurly) VisitToken(v TokenVisitor) { v.OpenCurly(t) }
-func (t OpenCurly) String() string {
-	return "{"
-}
 
 func (t CloseCurly) VisitToken(v TokenVisitor) { v.CloseCurly(t) }
-func (t CloseCurly) String() string {
-	return "}"
-}
 
 func Offset(token Token) int {
 	switch t := token.(type) {

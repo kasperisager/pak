@@ -51,7 +51,7 @@ func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 		}
 	}
 
-	return offset + 1, runes[1:], append(tokens, token.Character{Offset: offset, Data: peek(runes, 1) }), nil
+	return offset + 1, runes[1:], append(tokens, token.Character{Offset: offset, Data: peek(runes, 1)}), nil
 }
 
 // See: https://html.spec.whatwg.org/multipage/parsing.html#doctype-state
@@ -80,7 +80,7 @@ func scanDocumentType(offset int, runes []rune, tokens []token.Token, start int)
 					offset, runes = skipWhitespace(offset+4, runes[4:])
 
 					if peek(runes, 1) == '>' {
-						return offset+1, runes[1:], append(tokens, token.DocumentType{Offset: start}), nil
+						return offset + 1, runes[1:], append(tokens, token.DocumentType{Offset: start}), nil
 					}
 				}
 			}
@@ -149,6 +149,15 @@ attributes:
 				return offset, runes, tokens, err
 			}
 
+			for _, existing := range startTag.Attributes {
+				if existing.Name == attribute.Name {
+					return offset, runes, tokens, SyntaxError{
+						Offset:  attribute.Offset,
+						Message: "unexpected duplicate attribute",
+					}
+				}
+			}
+
 			startTag.Attributes = append(startTag.Attributes, attribute)
 		}
 	}
@@ -156,19 +165,6 @@ attributes:
 	switch peek(runes, 1) {
 	case '>':
 		offset, runes = offset+1, runes[1:]
-
-	case '/':
-		offset, runes = offset+1, runes[1:]
-
-		if peek(runes, 1) == '>' {
-			offset, runes = offset+1, runes[1:]
-			startTag.Closed = true
-		} else {
-			return offset, runes, tokens, SyntaxError{
-				Offset:  offset,
-				Message: `unexpected character, expected ">"`,
-			}
-		}
 
 	default:
 		return offset, runes, tokens, SyntaxError{
@@ -414,7 +410,44 @@ func scanRawText(offset int, runes []rune, tokens []token.Token, tagName string)
 
 // See: https://html.spec.whatwg.org/multipage/parsing.html#rcdata-state
 func scanRawData(offset int, runes []rune, tokens []token.Token, tagName string) (int, []rune, []token.Token, error) {
-	return offset, runes, tokens, nil
+	for len(runes) > 0 {
+		if peek(runes, 1) == '<' && peek(runes, 2) == '/' && isLetter(peek(runes, 3)) {
+			break
+		}
+
+		tokens = append(tokens, token.Character{Offset: offset, Data: runes[0]})
+		offset, runes = offset+1, runes[1:]
+	}
+
+	end := 2
+
+	for len(runes) > end {
+		next := peek(runes, end+1)
+
+		switch next {
+		case 0x9, 0xa, 0xc, ' ', '/', '>':
+			if tagName == strings.ToLower(string(runes[2:end])) {
+				return offset, runes, tokens, nil
+			}
+
+		default:
+			if !isLetter(next) {
+				for i := 0; i < end; i++ {
+					tokens = append(tokens, token.Character{Offset: offset, Data: runes[0]})
+					offset, runes = offset+1, runes[1:]
+				}
+
+				return scanRawText(offset, runes, tokens, tagName)
+			}
+
+			end++
+		}
+	}
+
+	return offset + end, runes[end:], tokens, SyntaxError{
+		Offset:  offset,
+		Message: "unexpected end of file",
+	}
 }
 
 func isBetween(rune rune, lower rune, upper rune) bool {

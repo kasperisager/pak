@@ -182,9 +182,28 @@ func parseImportRule(offset int, tokens []token.Token) (int, []token.Token, ast.
 		return offset, tokens, rule, nil
 
 	default:
-		return offset, tokens, rule, SyntaxError{
-			Offset:  offset,
-			Message: `unexpected token, expected ";"`,
+		offset, tokens, conditions, err := parseMediaQueryList(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, rule, err
+		}
+
+		rule.Conditions = conditions
+
+		offset, tokens = skipWhitespace(offset, tokens)
+
+		switch peek(tokens, 1).(type) {
+		case token.Semicolon:
+			return offset + 1, tokens[1:], rule, nil
+
+		case nil:
+			return offset, tokens, rule, nil
+
+		default:
+			return offset, tokens, rule, SyntaxError{
+				Offset:  offset,
+				Message: `unexpected token, expected ";"`,
+			}
 		}
 	}
 }
@@ -1006,7 +1025,7 @@ func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, 
 		case token.Comma:
 			offset, tokens = offset+1, tokens[1:]
 
-		case token.OpenCurly:
+		case token.OpenCurly, token.Semicolon, nil:
 			return offset, tokens, mediaQueries, nil
 
 		default:

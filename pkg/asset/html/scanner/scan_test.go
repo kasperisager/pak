@@ -32,12 +32,6 @@ func TestScan(t *testing.T) {
 			},
 		},
 		{
-			`<foo/>`,
-			[]token.Token{
-				token.StartTag{Offset: 0, Name: "foo", Closed: true},
-			},
-		},
-		{
 			`<foo></foo>`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo"},

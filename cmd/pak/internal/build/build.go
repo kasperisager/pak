@@ -14,6 +14,7 @@ import (
 
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css"
+	"github.com/kasperisager/pak/pkg/asset/html"
 	"github.com/kasperisager/pak/pkg/cli"
 )
 
@@ -154,6 +155,19 @@ func resolve(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error)
 		}
 
 		asset, err = css.Asset(url, bytes)
+
+		if err != nil {
+			return nil, err
+		}
+
+	case ".html":
+		bytes, err := fetch(url, root)
+
+		if err != nil {
+			return nil, err
+		}
+
+		asset, err = html.Asset(url, bytes)
 
 		if err != nil {
 			return nil, err

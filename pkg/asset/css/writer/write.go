@@ -23,7 +23,19 @@ func writeStyleSheet(w io.Writer, styleSheet ast.StyleSheet) {
 func writeRule(w io.Writer, rule ast.Rule) {
 	switch rule := rule.(type) {
 	case ast.ImportRule:
-		fmt.Fprintf(w, "@import \"%s\";", rule.URL.String())
+		fmt.Fprintf(w, "@import \"%s\"", rule.URL.String())
+
+		for i, mediaQuery := range rule.Conditions {
+			if i == 0 {
+				fmt.Fprintf(w, " ")
+			} else {
+				fmt.Fprintf(w, ",")
+			}
+
+			writeMediaQuery(w, mediaQuery)
+		}
+
+		fmt.Fprintf(w, ";")
 
 	case ast.StyleRule:
 		for i, selector := range rule.Selectors {

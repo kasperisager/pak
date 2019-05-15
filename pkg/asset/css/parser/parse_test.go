@@ -267,6 +267,19 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			`@import "foo" screen`,
+			ast.StyleSheet{
+				Rules: []ast.Rule{
+					ast.ImportRule{
+						URL: &url.URL{Path: "foo"},
+						Conditions: []ast.MediaQuery{
+							ast.MediaQuery{Type: "screen"},
+						},
+					},
+				},
+			},
+		},
+		{
 			`@media screen {}`,
 			ast.StyleSheet{
 				Rules: []ast.Rule{

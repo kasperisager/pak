@@ -56,7 +56,7 @@ func (a *CSSAsset) URL() *url.URL {
 }
 
 func (a *CSSAsset) References() []asset.Reference {
-	return collectReferences(a.URL(), a.StyleSheet, nil)
+	return collectReferences(a.url, a.StyleSheet, nil)
 }
 
 func (a *CSSAsset) Data() []byte {
@@ -148,7 +148,7 @@ func mergeImportRule(
 	for i, rule := range to.StyleSheet.Rules {
 		switch rule := rule.(type) {
 		case ast.ImportRule:
-			if rule == reference.Rule {
+			if rule.URL == reference.Rule.URL && rule.Conditions == nil {
 				rebaseReferences(&from.StyleSheet, from.url, to.url)
 
 				to.StyleSheet.Rules = append(

@@ -7,9 +7,9 @@ type (
 
 	TokenVisitor struct {
 		DocumentType func(DocumentType)
-		StartTag func(StartTag)
-		EndTag func(EndTag)
-		Character func(Character)
+		StartTag     func(StartTag)
+		EndTag       func(EndTag)
+		Character    func(Character)
 	}
 
 	DocumentType struct {
@@ -18,25 +18,25 @@ type (
 
 	Attribute struct {
 		Offset int
-		Name  string
-		Value string
+		Name   string
+		Value  string
 	}
 
 	StartTag struct {
-		Offset int
-		Name string
+		Offset     int
+		Name       string
 		Attributes []Attribute
-		Closed bool
+		Closed     bool
 	}
 
 	EndTag struct {
 		Offset int
-		Name string
+		Name   string
 	}
 
 	Character struct {
 		Offset int
-		Data rune
+		Data   rune
 	}
 )
 

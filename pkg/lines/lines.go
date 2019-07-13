@@ -9,7 +9,17 @@ type Line struct {
 	Value  []rune
 }
 
-func Lines(runes []rune) (lines []Line) {
+type Lines []Line
+
+func (lines Lines) At(offset int) Line {
+	i := sort.Search(len(lines), func(i int) bool {
+		return lines[i].Offset > offset
+	})
+
+	return lines[i-1]
+}
+
+func LinesFrom(runes []rune) (lines Lines) {
 	start := 0
 
 	for start < len(runes) {
@@ -40,12 +50,4 @@ func Lines(runes []rune) (lines []Line) {
 	}
 
 	return lines
-}
-
-func LineAtOffset(lines []Line, offset int) Line {
-	i := sort.Search(len(lines), func(i int) bool {
-		return lines[i].Offset > offset
-	})
-
-	return lines[i-1]
 }

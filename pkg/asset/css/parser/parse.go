@@ -64,6 +64,9 @@ func parseStyleSheet(offset int, tokens []token.Token) (int, []token.Token, *ast
 
 func parseRule(offset int, tokens []token.Token) (int, []token.Token, ast.Rule, error) {
 	switch t := peek(tokens, 1).(type) {
+	default:
+		return parseStyleRule(offset, tokens)
+
 	case token.AtKeyword:
 		switch t.Value {
 		case "import":
@@ -71,6 +74,9 @@ func parseRule(offset int, tokens []token.Token) (int, []token.Token, ast.Rule, 
 
 		case "media":
 			return parseMediaRule(offset+1, tokens[1:])
+
+		case "font-face":
+			return parseFontFaceRule(offset+1, tokens[1:])
 
 		case "keyframes":
 			return parseKeyframesRule(offset+1, tokens[1:], "")
@@ -89,9 +95,52 @@ func parseRule(offset int, tokens []token.Token) (int, []token.Token, ast.Rule, 
 				Message: "unexpected token",
 			}
 		}
+	}
+}
+
+func parseStyleRule(offset int, tokens []token.Token) (int, []token.Token, *ast.StyleRule, error) {
+	rule := &ast.StyleRule{}
+
+	offset, tokens, selectors, err := parseSelectorList(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, nil, err
+	}
+
+	rule.Selectors = selectors
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.OpenCurly:
+		offset, tokens = offset+1, tokens[1:]
 
 	default:
-		return parseStyleRule(offset, tokens)
+		return offset, tokens, nil, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "{"`,
+		}
+	}
+
+	offset, tokens, declarations, err := parseDeclarationList(skipWhitespace(offset, tokens))
+
+	if err != nil {
+		return offset, tokens, rule, err
+	}
+
+	rule.Declarations = declarations
+
+	offset, tokens = skipWhitespace(offset, tokens)
+
+	switch peek(tokens, 1).(type) {
+	case token.CloseCurly:
+		return offset + 1, tokens[1:], rule, nil
+
+	default:
+		return offset, tokens, rule, SyntaxError{
+			Offset:  offset,
+			Message: `unexpected token, expected "}"`,
+		}
 	}
 }
 
@@ -254,16 +303,8 @@ func parseMediaRule(offset int, tokens []token.Token) (int, []token.Token, *ast.
 	}
 }
 
-func parseStyleRule(offset int, tokens []token.Token) (int, []token.Token, *ast.StyleRule, error) {
-	rule := &ast.StyleRule{}
-
-	offset, tokens, selectors, err := parseSelectorList(skipWhitespace(offset, tokens))
-
-	if err != nil {
-		return offset, tokens, nil, err
-	}
-
-	rule.Selectors = selectors
+func parseFontFaceRule(offset int, tokens []token.Token) (int, []token.Token, *ast.FontFaceRule, error) {
+	rule := &ast.FontFaceRule{}
 
 	offset, tokens = skipWhitespace(offset, tokens)
 
@@ -1014,7 +1055,7 @@ func parseMediaQueryList(offset int, tokens []token.Token) (int, []token.Token, 
 		offset, tokens, mediaQuery, err = parseMediaQuery(offset, tokens)
 
 		if err != nil {
-			return offset, tokens, mediaQueries, err
+			return offset, tokens, nil, err
 		}
 
 		mediaQueries = append(mediaQueries, mediaQuery)

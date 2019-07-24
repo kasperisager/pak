@@ -19,6 +19,7 @@ type (
 		StyleRule     func(*StyleRule)
 		ImportRule    func(*ImportRule)
 		MediaRule     func(*MediaRule)
+		FontFaceRule  func(*FontFaceRule)
 		KeyframesRule func(*KeyframesRule)
 		SupportsRule  func(*SupportsRule)
 		PageRule      func(*PageRule)
@@ -37,6 +38,10 @@ type (
 	MediaRule struct {
 		Conditions []*MediaQuery
 		StyleSheet *StyleSheet
+	}
+
+	FontFaceRule struct {
+		Declarations []*Declaration
 	}
 
 	KeyframesRule struct {
@@ -220,6 +225,7 @@ type (
 func (r *StyleRule) VisitRule(v RuleVisitor)     { v.StyleRule(r) }
 func (r *ImportRule) VisitRule(v RuleVisitor)    { v.ImportRule(r) }
 func (r *MediaRule) VisitRule(v RuleVisitor)     { v.MediaRule(r) }
+func (r *FontFaceRule) VisitRule(v RuleVisitor)  { v.FontFaceRule(r) }
 func (r *KeyframesRule) VisitRule(v RuleVisitor) { v.KeyframesRule(r) }
 func (r *SupportsRule) VisitRule(v RuleVisitor)  { v.SupportsRule(r) }
 func (r *PageRule) VisitRule(v RuleVisitor)      { v.PageRule(r) }

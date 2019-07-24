@@ -66,7 +66,7 @@ func Parse(runes []rune) (*ast.Program, error) {
 
 	scanner := &Scanner{0, runes, nil}
 
-	var program *ast.Program
+	program := &ast.Program{}
 
 	for {
 		statement, ok, err := parseStatement(scanner, parameters)

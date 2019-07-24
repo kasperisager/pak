@@ -15,7 +15,21 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
 )
 
-func Asset(url *url.URL, data []byte) (asset.Asset, error) {
+type (
+	Asset struct {
+		url        *url.URL
+		StyleSheet *ast.StyleSheet
+	}
+
+	Reference struct {
+		url  *url.URL
+		Rule ast.Rule
+	}
+)
+
+const MediaType = "text/css"
+
+func From(url *url.URL, data []byte) (*Asset, error) {
 	runes := bytes.Runes(data)
 
 	tokens, err := scanner.Scan(runes)
@@ -36,72 +50,76 @@ func Asset(url *url.URL, data []byte) (asset.Asset, error) {
 		return nil, err
 	}
 
-	return &CSSAsset{url, styleSheet}, nil
+	return &Asset{url, styleSheet}, nil
 }
 
-type (
-	CSSAsset struct {
-		url        *url.URL
-		StyleSheet ast.StyleSheet
-	}
+func (a *Asset) MediaType() string {
+	return MediaType
+}
 
-	CSSImportReference struct {
-		url  *url.URL
-		Rule ast.ImportRule
-	}
-)
-
-func (a *CSSAsset) URL() *url.URL {
+func (a *Asset) URL() *url.URL {
 	return a.url
 }
 
-func (a *CSSAsset) References() []asset.Reference {
+func (a *Asset) References() []asset.Reference {
 	return collectReferences(a.url, a.StyleSheet, nil)
 }
 
-func (a *CSSAsset) Data() []byte {
+func (a *Asset) Embeds() []asset.Embed {
+	return nil
+}
+
+func (a *Asset) Data() []byte {
 	var b bytes.Buffer
 	writer.Write(&b, a.StyleSheet)
 	return b.Bytes()
 }
 
-func (a *CSSAsset) Merge(b asset.Asset, r asset.Reference) bool {
+func (a *Asset) Merge(b asset.Asset, r asset.Relation) bool {
 	switch b := b.(type) {
-	case *CSSAsset:
+	case *Asset:
 		switch r := r.(type) {
-		case *CSSImportReference:
-			return mergeImportRule(r, b, a)
+		case *Reference:
+			return mergeRule(r.Rule, b, a)
 		}
 	}
 
 	return false
 }
 
-func (r *CSSImportReference) URL() *url.URL {
+func (r *Reference) VisitRelation(v asset.RelationVisitor) {
+	v.Reference(r)
+}
+
+func (r *Reference) URL() *url.URL {
 	return r.url
+}
+
+func (r *Reference) Flags() asset.Flags {
+	return nil
 }
 
 func collectReferences(
 	base *url.URL,
-	styleSheet ast.StyleSheet,
+	styleSheet *ast.StyleSheet,
 	references []asset.Reference,
 ) []asset.Reference {
 	for _, rule := range styleSheet.Rules {
 		switch rule := rule.(type) {
-		case ast.ImportRule:
-			return append(
+		case *ast.ImportRule:
+			references = append(
 				references,
-				&CSSImportReference{
+				&Reference{
 					url:  base.ResolveReference(rule.URL),
 					Rule: rule,
 				},
 			)
 
-		case ast.MediaRule:
-			return collectReferences(base, rule.StyleSheet, references)
+		case *ast.MediaRule:
+			collectReferences(base, rule.StyleSheet, references)
 
-		case ast.SupportsRule:
-			return collectReferences(base, rule.StyleSheet, references)
+		case *ast.SupportsRule:
+			collectReferences(base, rule.StyleSheet, references)
 		}
 	}
 
@@ -111,11 +129,11 @@ func collectReferences(
 func rebaseReferences(styleSheet *ast.StyleSheet, from *url.URL, to *url.URL) {
 	for _, rule := range styleSheet.Rules {
 		switch rule := rule.(type) {
-		case ast.ImportRule:
-			*rule.URL = *rebaseUrl(rule.URL, from, to)
+		case *ast.ImportRule:
+			rule.URL = rebaseUrl(rule.URL, from, to)
 
-		case ast.MediaRule:
-			rebaseReferences(&rule.StyleSheet, from, to)
+		case *ast.MediaRule:
+			rebaseReferences(rule.StyleSheet, from, to)
 		}
 	}
 }
@@ -140,16 +158,12 @@ func rebaseUrl(reference *url.URL, from *url.URL, to *url.URL) *url.URL {
 	return from
 }
 
-func mergeImportRule(
-	reference *CSSImportReference,
-	from *CSSAsset,
-	to *CSSAsset,
-) bool {
-	for i, rule := range to.StyleSheet.Rules {
-		switch rule := rule.(type) {
-		case ast.ImportRule:
-			if rule.URL == reference.Rule.URL && rule.Conditions == nil {
-				rebaseReferences(&from.StyleSheet, from.url, to.url)
+func mergeRule(rule ast.Rule, from *Asset, to *Asset) bool {
+	for i, found := range to.StyleSheet.Rules {
+		if found == rule {
+			switch rule.(type) {
+			case *ast.ImportRule:
+				rebaseReferences(from.StyleSheet, from.url, to.url)
 
 				to.StyleSheet.Rules = append(
 					to.StyleSheet.Rules[:i],

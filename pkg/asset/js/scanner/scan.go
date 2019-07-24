@@ -16,20 +16,47 @@ func (err SyntaxError) Error() string {
 	return err.Message
 }
 
-func Scan(offset int, runes []rune) (int, []rune, token.Token, error) {
-	offset, runes, token := scanToken(offset, runes)
-
-	if token == nil {
-		return offset, runes, nil, SyntaxError{
-			Offset:  offset,
-			Message: "unexpected character",
-		}
-	}
-
-	return offset, runes, token, nil
+type Options struct {
+	regExp       bool
+	templateTail bool
 }
 
-func scanToken(offset int, runes Runes) (int, Runes, token.Token) {
+func RegExp(allowed bool) func(*Options) {
+	return func(options *Options) {
+		options.regExp = allowed
+	}
+}
+
+func TemplateTail(allowed bool) func(*Options) {
+	return func(options *Options) {
+		options.templateTail = allowed
+	}
+}
+
+func Scan(offset int, runes []rune, options ...func(*Options)) (int, []rune, token.Token) {
+	_options := Options{
+		regExp:       true,
+		templateTail: false,
+	}
+
+	for _, option := range options {
+		option(&_options)
+	}
+
+	return scanToken(offset, runes, _options)
+}
+
+func ScanInto(offset int, runes []rune, tokens []token.Token, options ...func(*Options)) (int, []rune, []token.Token, bool) {
+	offset, runes, token := Scan(offset, runes, options...)
+
+	if token == nil {
+		return offset, runes, tokens, false
+	}
+
+	return offset, runes, append(tokens, token), true
+}
+
+func scanToken(offset int, runes Runes, options Options) (int, Runes, token.Token) {
 	start := offset
 
 	if offset, runes, value, ok := scanIdentifierName(offset, runes); ok {
@@ -39,13 +66,13 @@ func scanToken(offset int, runes Runes) (int, Runes, token.Token) {
 
 		switch value {
 		case "true":
-			return offset, runes, token.BooleanLiteral{Offset: start, Value: true}
+			return offset, runes, token.Boolean{Offset: start, Value: true}
 
 		case "false":
-			return offset, runes, token.BooleanLiteral{Offset: start, Value: false}
+			return offset, runes, token.Boolean{Offset: start, Value: false}
 
 		case "null":
-			return offset, runes, token.NullLiteral{Offset: start}
+			return offset, runes, token.Null{Offset: start}
 		}
 
 		return offset, runes, token.Identifier{Offset: start, Value: value}
@@ -55,12 +82,12 @@ func scanToken(offset int, runes Runes) (int, Runes, token.Token) {
 		return offset, runes, token.Whitespace{Offset: start}
 	}
 
-	if offset, runes, value, ok := scanPunctuator(offset, runes); ok {
+	if offset, runes, value, ok := scanPunctuator(offset, runes, options); ok {
 		return offset, runes, token.Punctuator{Offset: start, Value: value}
 	}
 
 	if offset, runes, value, ok := scanStringLiteral(offset, runes); ok {
-		return offset, runes, token.StringLiteral{Offset: start, Value: value}
+		return offset, runes, token.String{Offset: start, Value: value}
 	}
 
 	return offset, runes, nil
@@ -204,7 +231,7 @@ func scanWhitespace(offset int, runes Runes) (int, Runes, bool) {
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-Punctuator
-func scanPunctuator(offset int, runes Runes) (int, Runes, string, bool) {
+func scanPunctuator(offset int, runes Runes, options Options) (int, Runes, string, bool) {
 	next := runes.Peek(1)
 
 	switch next {
@@ -217,6 +244,20 @@ func scanPunctuator(offset int, runes Runes) (int, Runes, string, bool) {
 		}
 
 		return offset + 1, runes[1:], ".", true
+
+	case '}':
+		if !options.templateTail {
+			return offset + 1, runes[1:], "}", true
+		}
+
+	case '/':
+		if !options.regExp {
+			if runes.Peek(2) == '=' {
+				return offset + 2, runes[2:], "/=", true
+			}
+
+			return offset + 1, runes[1:], "/", true
+		}
 	}
 
 	return offset, runes, "", false

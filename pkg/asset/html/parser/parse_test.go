@@ -258,6 +258,50 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			`
+			<!doctype html>
+			<html>
+				<head>
+					<meta charset="utf8">
+					<title>Howdy!</title>
+					<script src="main.js"></script>
+				</head>
+				<body>
+
+				</body>
+			</html>
+			`,
+			ast.Element{
+				Name: "html",
+				Children: []ast.Node{
+					ast.Element{
+						Name: "head",
+						Children: []ast.Node{
+							ast.Element{
+								Name: "meta",
+								Attributes: []ast.Attribute{
+									ast.Attribute{Name: "charset", Value: "utf8"},
+								},
+							},
+							ast.Element{
+								Name: "title",
+								Children: []ast.Node{
+									ast.Text{Data: "Howdy!"},
+								},
+							},
+							ast.Element{
+								Name: "script",
+								Attributes: []ast.Attribute{
+									ast.Attribute{Name: "src", Value: "main.js"},
+								},
+							},
+						},
+					},
+					ast.Element{Name: "body"},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

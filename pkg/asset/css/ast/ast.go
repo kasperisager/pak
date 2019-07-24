@@ -16,42 +16,42 @@ type (
 	}
 
 	RuleVisitor struct {
-		StyleRule     func(StyleRule)
-		ImportRule    func(ImportRule)
-		MediaRule     func(MediaRule)
-		KeyframesRule func(KeyframesRule)
-		SupportsRule  func(SupportsRule)
-		PageRule      func(PageRule)
+		StyleRule     func(*StyleRule)
+		ImportRule    func(*ImportRule)
+		MediaRule     func(*MediaRule)
+		KeyframesRule func(*KeyframesRule)
+		SupportsRule  func(*SupportsRule)
+		PageRule      func(*PageRule)
 	}
 
 	StyleRule struct {
 		Selectors    []Selector
-		Declarations []Declaration
+		Declarations []*Declaration
 	}
 
 	ImportRule struct {
 		URL        *url.URL
-		Conditions []MediaQuery
+		Conditions []*MediaQuery
 	}
 
 	MediaRule struct {
-		Conditions []MediaQuery
-		StyleSheet StyleSheet
+		Conditions []*MediaQuery
+		StyleSheet *StyleSheet
 	}
 
 	KeyframesRule struct {
 		Prefix string
 		Name   string
-		Blocks []KeyframeBlock
+		Blocks []*KeyframeBlock
 	}
 
 	SupportsRule struct {
 		Condition  SupportsCondition
-		StyleSheet StyleSheet
+		StyleSheet *StyleSheet
 	}
 
 	PageRule struct {
-		Selectors  []PageSelector
+		Selectors  []*PageSelector
 		Components []PageComponent
 	}
 
@@ -66,13 +66,13 @@ type (
 	}
 
 	SelectorVisitor struct {
-		IdSelector        func(IdSelector)
-		ClassSelector     func(ClassSelector)
-		AttributeSelector func(AttributeSelector)
-		TypeSelector      func(TypeSelector)
-		PseudoSelector    func(PseudoSelector)
-		CompoundSelector  func(CompoundSelector)
-		RelativeSelector  func(RelativeSelector)
+		IdSelector        func(*IdSelector)
+		ClassSelector     func(*ClassSelector)
+		AttributeSelector func(*AttributeSelector)
+		TypeSelector      func(*TypeSelector)
+		PseudoSelector    func(*PseudoSelector)
+		CompoundSelector  func(*CompoundSelector)
+		RelativeSelector  func(*RelativeSelector)
 	}
 
 	IdSelector struct {
@@ -124,9 +124,9 @@ type (
 	}
 
 	MediaConditionVisitor struct {
-		MediaOperation func(MediaOperation)
-		MediaFeature   func(MediaFeature)
-		MediaNegation  func(MediaNegation)
+		MediaOperation func(*MediaOperation)
+		MediaFeature   func(*MediaFeature)
+		MediaNegation  func(*MediaNegation)
 	}
 
 	MediaOperation struct {
@@ -149,8 +149,8 @@ type (
 	}
 
 	MediaValueVisitor struct {
-		MediaValuePlain func(MediaValuePlain)
-		MediaValueRange func(MediaValueRange)
+		MediaValuePlain func(*MediaValuePlain)
+		MediaValueRange func(*MediaValueRange)
 	}
 
 	MediaValuePlain struct {
@@ -166,7 +166,7 @@ type (
 
 	KeyframeBlock struct {
 		Selector     float64
-		Declarations []Declaration
+		Declarations []*Declaration
 	}
 
 	SupportsCondition interface {
@@ -174,9 +174,9 @@ type (
 	}
 
 	SupportsConditionVisitor struct {
-		SupportsOperation func(SupportsOperation)
-		SupportsFeature   func(SupportsFeature)
-		SupportsNegation  func(SupportsNegation)
+		SupportsOperation func(*SupportsOperation)
+		SupportsFeature   func(*SupportsFeature)
+		SupportsNegation  func(*SupportsNegation)
 	}
 
 	SupportsOperation struct {
@@ -186,7 +186,7 @@ type (
 	}
 
 	SupportsFeature struct {
-		Declaration Declaration
+		Declaration *Declaration
 	}
 
 	SupportsNegation struct {
@@ -203,100 +203,43 @@ type (
 	}
 
 	PageComponentVisitor struct {
-		PageDeclaration func(PageDeclaration)
-		PageMargin      func(PageMargin)
+		PageDeclaration func(*PageDeclaration)
+		PageMargin      func(*PageMargin)
 	}
 
 	PageDeclaration struct {
-		Declaration Declaration
+		Declaration *Declaration
 	}
 
 	PageMargin struct {
 		Name         string
-		Declarations []Declaration
+		Declarations []*Declaration
 	}
 )
 
-func (r StyleRule) VisitRule(v RuleVisitor) {
-	v.StyleRule(r)
-}
+func (r *StyleRule) VisitRule(v RuleVisitor)     { v.StyleRule(r) }
+func (r *ImportRule) VisitRule(v RuleVisitor)    { v.ImportRule(r) }
+func (r *MediaRule) VisitRule(v RuleVisitor)     { v.MediaRule(r) }
+func (r *KeyframesRule) VisitRule(v RuleVisitor) { v.KeyframesRule(r) }
+func (r *SupportsRule) VisitRule(v RuleVisitor)  { v.SupportsRule(r) }
+func (r *PageRule) VisitRule(v RuleVisitor)      { v.PageRule(r) }
 
-func (r ImportRule) VisitRule(v RuleVisitor) {
-	v.ImportRule(r)
-}
+func (s *IdSelector) VisitSelector(v SelectorVisitor)        { v.IdSelector(s) }
+func (s *ClassSelector) VisitSelector(v SelectorVisitor)     { v.ClassSelector(s) }
+func (s *AttributeSelector) VisitSelector(v SelectorVisitor) { v.AttributeSelector(s) }
+func (s *TypeSelector) VisitSelector(v SelectorVisitor)      { v.TypeSelector(s) }
+func (s *PseudoSelector) VisitSelector(v SelectorVisitor)    { v.PseudoSelector(s) }
+func (s *RelativeSelector) VisitSelector(v SelectorVisitor)  { v.RelativeSelector(s) }
+func (s *CompoundSelector) VisitSelector(v SelectorVisitor)  { v.CompoundSelector(s) }
 
-func (r MediaRule) VisitRule(v RuleVisitor) {
-	v.MediaRule(r)
-}
+func (m *MediaOperation) VisitMediaCondition(v MediaConditionVisitor) { v.MediaOperation(m) }
+func (m *MediaNegation) VisitMediaCondition(v MediaConditionVisitor)  { v.MediaNegation(m) }
+func (m *MediaFeature) VisitMediaCondition(v MediaConditionVisitor)   { v.MediaFeature(m) }
 
-func (r KeyframesRule) VisitRule(v RuleVisitor) {
-	v.KeyframesRule(r)
-}
+func (m *MediaValuePlain) VisitMediaValue(v MediaValueVisitor) { v.MediaValuePlain(m) }
 
-func (r SupportsRule) VisitRule(v RuleVisitor) {
-	v.SupportsRule(r)
-}
+func (s *SupportsOperation) VisitSupportsCondition(v SupportsConditionVisitor) { v.SupportsOperation(s) }
+func (s *SupportsNegation) VisitSupportsCondition(v SupportsConditionVisitor)  { v.SupportsNegation(s) }
+func (s *SupportsFeature) VisitSupportsCondition(v SupportsConditionVisitor)   { v.SupportsFeature(s) }
 
-func (r PageRule) VisitRule(v RuleVisitor) {
-	v.PageRule(r)
-}
-
-func (s IdSelector) VisitSelector(v SelectorVisitor) {
-	v.IdSelector(s)
-}
-
-func (s ClassSelector) VisitSelector(v SelectorVisitor) {
-	v.ClassSelector(s)
-}
-
-func (s AttributeSelector) VisitSelector(v SelectorVisitor) {
-	v.AttributeSelector(s)
-}
-
-func (s TypeSelector) VisitSelector(v SelectorVisitor) {
-	v.TypeSelector(s)
-}
-
-func (s PseudoSelector) VisitSelector(v SelectorVisitor) {
-	v.PseudoSelector(s)
-}
-
-func (s RelativeSelector) VisitSelector(v SelectorVisitor) {
-	v.RelativeSelector(s)
-}
-
-func (s CompoundSelector) VisitSelector(v SelectorVisitor) {
-	v.CompoundSelector(s)
-}
-
-func (m MediaOperation) VisitMediaCondition(v MediaConditionVisitor) {
-	v.MediaOperation(m)
-}
-
-func (m MediaNegation) VisitMediaCondition(v MediaConditionVisitor) {
-	v.MediaNegation(m)
-}
-
-func (m MediaFeature) VisitMediaCondition(v MediaConditionVisitor) {
-	v.MediaFeature(m)
-}
-
-func (m MediaValuePlain) VisitMediaValue(v MediaValueVisitor) {
-	v.MediaValuePlain(m)
-}
-
-func (s SupportsOperation) VisitSupportsCondition(v SupportsConditionVisitor) {
-	v.SupportsOperation(s)
-}
-
-func (s SupportsNegation) VisitSupportsCondition(v SupportsConditionVisitor) {
-	v.SupportsNegation(s)
-}
-
-func (s SupportsFeature) VisitSupportsCondition(v SupportsConditionVisitor) {
-	v.SupportsFeature(s)
-}
-
-func (p PageDeclaration) VisitPageComponent(v PageComponentVisitor) {
-	v.PageDeclaration(p)
-}
+func (p *PageDeclaration) VisitPageComponent(v PageComponentVisitor) { v.PageDeclaration(p) }

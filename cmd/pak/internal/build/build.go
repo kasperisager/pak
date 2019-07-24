@@ -13,8 +13,11 @@ import (
 	"strings"
 
 	"github.com/kasperisager/pak/pkg/asset"
+	"github.com/kasperisager/pak/pkg/asset/blob"
 	"github.com/kasperisager/pak/pkg/asset/css"
 	"github.com/kasperisager/pak/pkg/asset/html"
+	"github.com/kasperisager/pak/pkg/asset/importmap"
+	"github.com/kasperisager/pak/pkg/asset/js"
 	"github.com/kasperisager/pak/pkg/cli"
 )
 
@@ -123,7 +126,7 @@ func read(urls []*url.URL, root string) (*asset.Graph, error) {
 	entries := make([]asset.Asset, len(urls))
 
 	for i, url := range urls {
-		resolved, err := resolve(url, root, graph)
+		resolved, err := resolve(url, root, graph, nil)
 
 		if err != nil {
 			return nil, err
@@ -139,57 +142,79 @@ func read(urls []*url.URL, root string) (*asset.Graph, error) {
 	return graph, nil
 }
 
-func resolve(url *url.URL, root string, graph *asset.Graph) (asset.Asset, error) {
-	if asset, ok := graph.Lookup(url); ok {
+func parse(url *url.URL, data []byte, mediaType string, flags asset.Flags) (asset.Asset, error) {
+	switch mediaType {
+	case css.MediaType:
+		return css.From(url, data)
+
+	case html.MediaType:
+		return html.From(url, data)
+
+	case js.MediaType:
+		return js.From(url, data, flags)
+
+	case importmap.MediaType:
+		return importmap.From(url, data)
+
+	default:
+		return blob.From(url, data), nil
+	}
+}
+
+func resolve(
+	url *url.URL,
+	root string,
+	graph *asset.Graph,
+	flags asset.Flags,
+) (asset.Asset, error) {
+	if asset, ok := graph.Lookup(asset.ByURL(url)); ok {
 		return asset, nil
 	}
 
-	var asset asset.Asset
+	mediaType, data, err := fetch(url, root, flags)
 
-	switch filepath.Ext(url.Path) {
-	case ".css":
-		bytes, err := fetch(url, root)
-
-		if err != nil {
-			return nil, err
-		}
-
-		asset, err = css.Asset(url, bytes)
-
-		if err != nil {
-			return nil, err
-		}
-
-	case ".html":
-		bytes, err := fetch(url, root)
-
-		if err != nil {
-			return nil, err
-		}
-
-		asset, err = html.Asset(url, bytes)
-
-		if err != nil {
-			return nil, err
-		}
-
-	default:
-		return nil, fmt.Errorf("%s: unsupported file type", url)
+	if err != nil {
+		return nil, err
 	}
 
-	graph.Add(asset)
+	resolved, err := parse(url, data, mediaType, flags)
 
-	for _, reference := range asset.References() {
-		resolved, err := resolve(reference.URL(), root, graph)
+	if err != nil {
+		return nil, err
+	}
+
+	graph.Add(resolved)
+
+	for _, reference := range resolved.References() {
+		url := reference.URL()
+		flags := reference.Flags()
+
+		referenced, err := resolve(url, root, graph, flags)
 
 		if err != nil {
 			return nil, err
 		}
 
-		graph.Reference(asset, resolved, reference)
+		graph.Relation(resolved, referenced, reference)
 	}
 
-	return asset, nil
+	for _, embed := range resolved.Embeds() {
+		data := embed.Data()
+		mediaType := embed.MediaType()
+		flags := embed.Flags()
+
+		embedded, err := parse(url, data, mediaType, flags)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if graph.Add(embedded) {
+			graph.Relation(resolved, embedded, embed)
+		}
+	}
+
+	return resolved, nil
 }
 
 func compress(graph *asset.Graph, entries []asset.Asset) error {
@@ -224,22 +249,22 @@ func merge(
 
 	visited[asset] = true
 
-	assets, references, _ := graph.Outgoing(asset)
+	assets, relations, _ := graph.Outgoing(asset)
 
-	for i, reference := range assets {
-		if visited[reference] {
+	for i, related := range assets {
+		if visited[related] {
 			continue
 		}
 
-		err := merge(graph, partitions, reference, visited)
+		err := merge(graph, partitions, related, visited)
 
 		if err != nil {
 			return err
 		}
 
-		if partitions[asset] == partitions[reference] {
-			if asset.Merge(reference, references[i]) {
-				graph.Merge(asset, reference)
+		if partitions[asset] == partitions[related] {
+			if asset.Merge(related, relations[i]) {
+				graph.Merge(asset, related)
 			}
 		}
 	}
@@ -301,8 +326,8 @@ func mark(
 
 	assets, _, _ := graph.Outgoing(asset)
 
-	for _, reference := range assets {
-		err := mark(graph, hashes, reference, data, visited)
+	for _, related := range assets {
+		err := mark(graph, hashes, related, data, visited)
 
 		if err != nil {
 			return err
@@ -312,27 +337,34 @@ func mark(
 	return nil
 }
 
-func fetch(url *url.URL, root string) ([]byte, error) {
-	var (
-		bytes []byte
-		err   error
-	)
-
+func fetch(url *url.URL, root string, flags asset.Flags) (mediaType string, data []byte, err error) {
 	if url.IsAbs() {
 		response, err := http.Get(url.String())
 
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
 
 		defer response.Body.Close()
 
-		bytes, err = ioutil.ReadAll(response.Body)
+		mediaType = response.Header.Get("content-type")
+
+		data, err = ioutil.ReadAll(response.Body)
 	} else {
-		bytes, err = ioutil.ReadFile(filename(url, root))
+		data, err = ioutil.ReadFile(filename(url, root))
+
+		if flags.Has("mediaType") {
+			mediaType = flags.Get("mediaType").(string)
+		} else {
+			mediaType = asset.MediaTypeByURL(url)
+
+			if mediaType == "" {
+				mediaType = http.DetectContentType(data)
+			}
+		}
 	}
 
-	return bytes, err
+	return mediaType, data, err
 }
 
 func write(graph *asset.Graph, out, vendor string) error {

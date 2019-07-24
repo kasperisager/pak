@@ -1,38 +1,40 @@
-package css
+package blob
 
 import (
-	"mime"
 	"net/url"
-	"path"
 
 	"github.com/kasperisager/pak/pkg/asset"
 )
 
-func Asset(url *url.URL, data []byte) (asset.Asset, error) {
-	return &BlobAsset{url, data}, nil
-}
-
-type BlobAsset struct {
+type Asset struct {
 	url  *url.URL
 	data []byte
 }
 
-func (a *BlobAsset) Type() string {
-	return mime.TypeByExtension(path.Ext(a.url.Path))
+func From(url *url.URL, data []byte) *Asset {
+	return &Asset{url, data}
 }
 
-func (a *BlobAsset) URL() *url.URL {
+func (a *Asset) MediaType() string {
+	return asset.MediaTypeByURL(a.url)
+}
+
+func (a *Asset) URL() *url.URL {
 	return a.url
 }
 
-func (a *BlobAsset) References() []asset.Reference {
+func (a *Asset) References() []asset.Reference {
 	return nil
 }
 
-func (a *BlobAsset) Data() []byte {
+func (a *Asset) Embeds() []asset.Embed {
+	return nil
+}
+
+func (a *Asset) Data() []byte {
 	return a.data
 }
 
-func (a *BlobAsset) Merge(b asset.Asset, r asset.Reference) bool {
+func (a *Asset) Merge(b asset.Asset, r asset.Relation) bool {
 	return false
 }

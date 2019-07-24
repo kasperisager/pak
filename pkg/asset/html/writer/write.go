@@ -7,12 +7,12 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/html/ast"
 )
 
-func Write(w io.Writer, document ast.Element) {
+func Write(w io.Writer, document *ast.Element) {
 	fmt.Fprintf(w, "<!doctype html>")
 	writeElement(w, document)
 }
 
-func writeElement(w io.Writer, element ast.Element) {
+func writeElement(w io.Writer, element *ast.Element) {
 	fmt.Fprintf(w, "<%s", element.Name)
 
 	for _, attribute := range element.Attributes {
@@ -25,10 +25,10 @@ func writeElement(w io.Writer, element ast.Element) {
 
 	for _, child := range element.Children {
 		switch child := child.(type) {
-		case ast.Element:
+		case *ast.Element:
 			writeElement(w, child)
 
-		case ast.Text:
+		case *ast.Text:
 			writeText(w, child)
 		}
 	}
@@ -38,7 +38,7 @@ func writeElement(w io.Writer, element ast.Element) {
 	}
 }
 
-func writeAttribute(w io.Writer, attribute ast.Attribute) {
+func writeAttribute(w io.Writer, attribute *ast.Attribute) {
 	fmt.Fprintf(w, attribute.Name)
 
 	if attribute.Value != "" {
@@ -46,6 +46,6 @@ func writeAttribute(w io.Writer, attribute ast.Attribute) {
 	}
 }
 
-func writeText(w io.Writer, text ast.Text) {
+func writeText(w io.Writer, text *ast.Text) {
 	fmt.Fprintf(w, text.Data)
 }

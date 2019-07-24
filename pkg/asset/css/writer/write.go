@@ -10,11 +10,11 @@ import (
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 )
 
-func Write(w io.Writer, styleSheet ast.StyleSheet) {
+func Write(w io.Writer, styleSheet *ast.StyleSheet) {
 	writeStyleSheet(w, styleSheet)
 }
 
-func writeStyleSheet(w io.Writer, styleSheet ast.StyleSheet) {
+func writeStyleSheet(w io.Writer, styleSheet *ast.StyleSheet) {
 	for _, rule := range styleSheet.Rules {
 		writeRule(w, rule)
 	}
@@ -22,7 +22,7 @@ func writeStyleSheet(w io.Writer, styleSheet ast.StyleSheet) {
 
 func writeRule(w io.Writer, rule ast.Rule) {
 	switch rule := rule.(type) {
-	case ast.ImportRule:
+	case *ast.ImportRule:
 		fmt.Fprintf(w, "@import \"%s\"", rule.URL.String())
 
 		for i, mediaQuery := range rule.Conditions {
@@ -37,7 +37,7 @@ func writeRule(w io.Writer, rule ast.Rule) {
 
 		fmt.Fprintf(w, ";")
 
-	case ast.StyleRule:
+	case *ast.StyleRule:
 		for i, selector := range rule.Selectors {
 			if i != 0 {
 				fmt.Fprintf(w, ",")
@@ -58,7 +58,7 @@ func writeRule(w io.Writer, rule ast.Rule) {
 
 		fmt.Fprintf(w, "}")
 
-	case ast.MediaRule:
+	case *ast.MediaRule:
 		fmt.Fprintf(w, "@media ")
 
 		for i, mediaQuery := range rule.Conditions {
@@ -79,13 +79,13 @@ func writeRule(w io.Writer, rule ast.Rule) {
 
 func writeSelector(w io.Writer, selector ast.Selector) {
 	switch selector := selector.(type) {
-	case ast.IdSelector:
+	case *ast.IdSelector:
 		fmt.Fprintf(w, "#%s", selector.Name)
 
-	case ast.ClassSelector:
+	case *ast.ClassSelector:
 		fmt.Fprintf(w, ".%s", selector.Name)
 
-	case ast.AttributeSelector:
+	case *ast.AttributeSelector:
 		fmt.Fprintf(w, "[")
 
 		if selector.Namespace != nil {
@@ -100,21 +100,21 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 
 		fmt.Fprintf(w, "]")
 
-	case ast.TypeSelector:
+	case *ast.TypeSelector:
 		fmt.Fprintf(w, "%s", selector.Name)
 
-	case ast.CompoundSelector:
+	case *ast.CompoundSelector:
 		writeSelector(w, selector.Left)
 		writeSelector(w, selector.Right)
 
-	case ast.RelativeSelector:
+	case *ast.RelativeSelector:
 		writeSelector(w, selector.Left)
 		fmt.Fprintf(w, "%c", selector.Combinator)
 		writeSelector(w, selector.Right)
 	}
 }
 
-func writeMediaQuery(w io.Writer, mediaQuery ast.MediaQuery) {
+func writeMediaQuery(w io.Writer, mediaQuery *ast.MediaQuery) {
 	var parts []string
 
 	if mediaQuery.Qualifier != "" {
@@ -128,7 +128,7 @@ func writeMediaQuery(w io.Writer, mediaQuery ast.MediaQuery) {
 	fmt.Fprintf(w, "%s", strings.Join(parts, " "))
 }
 
-func writeDeclaration(w io.Writer, declaration ast.Declaration) {
+func writeDeclaration(w io.Writer, declaration *ast.Declaration) {
 	fmt.Fprintf(w, "%s:", declaration.Name)
 
 	for _, t := range declaration.Value {

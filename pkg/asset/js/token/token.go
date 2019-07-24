@@ -7,14 +7,14 @@ type (
 
 	TokenVisitor struct {
 		Whitespace     func(Whitespace)
-		LineTerminator func(LineTerminator)
+		Newline        func(Newline)
 		Keyword        func(Keyword)
 		Identifier     func(Identifier)
 		Punctuator     func(Punctuator)
-		NumericLiteral func(NumericLiteral)
-		StringLiteral  func(StringLiteral)
-		BooleanLiteral func(BooleanLiteral)
-		NullLiteral    func(NullLiteral)
+		Number         func(Number)
+		String         func(String)
+		Boolean        func(Boolean)
+		Null           func(Null)
 		Template       func(Template)
 		TemplateHead   func(TemplateHead)
 		TemplateMiddle func(TemplateMiddle)
@@ -25,7 +25,7 @@ type (
 		Offset int
 	}
 
-	LineTerminator struct {
+	Newline struct {
 		Offset int
 	}
 
@@ -44,21 +44,21 @@ type (
 		Value  string
 	}
 
-	NumericLiteral struct {
+	Number struct {
 		Offset int
 		Value  float64
 	}
 
-	StringLiteral struct {
+	String struct {
 		Offset int
 		Value  string
 	}
 
-	NullLiteral struct {
+	Null struct {
 		Offset int
 	}
 
-	BooleanLiteral struct {
+	Boolean struct {
 		Offset int
 		Value  bool
 	}
@@ -85,15 +85,10 @@ type (
 )
 
 func (t Whitespace) VisitToken(v TokenVisitor) { v.Whitespace(t) }
-
-func (t Keyword) VisitToken(v TokenVisitor) { v.Keyword(t) }
-
+func (t Keyword) VisitToken(v TokenVisitor)    { v.Keyword(t) }
 func (t Identifier) VisitToken(v TokenVisitor) { v.Identifier(t) }
-
 func (t Punctuator) VisitToken(v TokenVisitor) { v.Punctuator(t) }
-
-func (t StringLiteral) VisitToken(v TokenVisitor) { v.StringLiteral(t) }
-
-func (t BooleanLiteral) VisitToken(v TokenVisitor) { v.BooleanLiteral(t) }
-
-func (t NullLiteral) VisitToken(v TokenVisitor) { v.NullLiteral(t) }
+func (t Number) VisitToken(v TokenVisitor)     { v.Number(t) }
+func (t String) VisitToken(v TokenVisitor)     { v.String(t) }
+func (t Boolean) VisitToken(v TokenVisitor)    { v.Boolean(t) }
+func (t Null) VisitToken(v TokenVisitor)       { v.Null(t) }

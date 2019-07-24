@@ -21,26 +21,65 @@ type (
 	}
 
 	ExpressionVisitor struct {
-		Identifier func(Identifier)
-		Literal    func(Literal)
+		Identifier               func(*Identifier)
+		Literal                  func(Literal)
+		ThisExpression           func(*ThisExpression)
+		ArrayExpression          func(*ArrayExpression)
+		ObjectExpression         func(*ObjectExpression)
+		FunctionExpression       func(*FunctionExpression)
+		UnaryExpression          func(*UnaryExpression)
+		UpdateExpression         func(*UpdateExpression)
+		BinaryExpression         func(*BinaryExpression)
+		AssignmentExpression     func(*AssignmentExpression)
+		LogicalExpression        func(*LogicalExpression)
+		ConditionalExpression    func(*ConditionalExpression)
+		CallExpression           func(*CallExpression)
+		NewExpression            func(*NewExpression)
+		SequenceExpression       func(*SequenceExpression)
+		ArrowFunctionExpression  func(*ArrowFunctionExpression)
+		YieldExpression          func(*YieldExpression)
+		AwaitExpression          func(*AwaitExpression)
+		TemplateLiteral          func(*TemplateLiteral)
+		TaggedTemplateExpression func(*TaggedTemplateExpression)
+		ClassExpression          func(*ClassExpression)
 	}
 
 	Statement interface {
+		ProgramBody
 		VisitStatement(StatementVisitor)
 	}
 
 	StatementVisitor struct {
-		ExpressionStatement func(ExpressionStatement)
-		BlockStatement      func(BlockStatement)
-		EmptyStatement      func(EmptyStatement)
-		DebuggerStatement   func(DebuggerStatement)
+		Declaration         func(Declaration)
+		ExpressionStatement func(*ExpressionStatement)
+		BlockStatement      func(*BlockStatement)
+		EmptyStatement      func(*EmptyStatement)
+		DebuggerStatement   func(*DebuggerStatement)
+		WithStatement       func(*WithStatement)
+		ReturnStatement     func(*ReturnStatement)
+		LabeledStatement    func(*LabeledStatement)
+		BreakStatement      func(*BreakStatement)
+		ContinueStatement   func(*ContinueStatement)
+		IfStatement         func(*IfStatement)
+		SwitchStatement     func(*SwitchStatement)
+		ThrowStatement      func(*ThrowStatement)
+		TryStatement        func(*TryStatement)
+		WhileStatement      func(*WhileStatement)
+		DoWhileStatement    func(*DoWhileStatement)
+		ForStatement        func(*ForStatement)
+		ForInStatement      func(*ForInStatement)
+		ForOfStatement      func(*ForOfStatement)
 	}
 
 	Declaration interface {
+		Statement
 		VisitDeclaration(DeclarationVisitor)
 	}
 
 	DeclarationVisitor struct {
+		FunctionDeclaration func(*FunctionDeclaration)
+		VariableDeclaration func(*VariableDeclaration)
+		ClassDeclaration    func(*ClassDeclaration)
 	}
 
 	Pattern interface {
@@ -48,7 +87,7 @@ type (
 	}
 
 	PatternVisitor struct {
-		Identifier func(Identifier)
+		Identifier func(*Identifier)
 	}
 
 	Identifier struct {
@@ -56,15 +95,16 @@ type (
 	}
 
 	Literal interface {
+		Expression
 		VisitLiteral(LiteralVisitor)
 	}
 
 	LiteralVisitor struct {
-		StringLiteral  func(StringLiteral)
-		BooleanLiteral func(BooleanLiteral)
-		NullLiteral    func(NullLiteral)
-		NumberLiteral  func(NumberLiteral)
-		RegExpLiteral  func(RegExpLiteral)
+		StringLiteral  func(*StringLiteral)
+		BooleanLiteral func(*BooleanLiteral)
+		NullLiteral    func(*NullLiteral)
+		NumberLiteral  func(*NumberLiteral)
+		RegExpLiteral  func(*RegExpLiteral)
 	}
 
 	StringLiteral struct {
@@ -110,7 +150,7 @@ type (
 	}
 
 	LabeledStatement struct {
-		Label Identifier
+		Label *Identifier
 		Body  Statement
 	}
 
@@ -130,7 +170,7 @@ type (
 
 	SwitchStatement struct {
 		Discriminant Expression
-		Cases        []SwitchCase
+		Cases        []*SwitchCase
 	}
 
 	SwitchCase struct {
@@ -143,14 +183,14 @@ type (
 	}
 
 	TryStatement struct {
-		Block     BlockStatement
+		Block     *BlockStatement
 		Handler   *CatchClause
 		Finalizer *BlockStatement
 	}
 
 	CatchClause struct {
 		Param Pattern
-		Body  BlockStatement
+		Body  *BlockStatement
 	}
 
 	WhileStatement struct {
@@ -175,7 +215,7 @@ type (
 	}
 
 	ForStatementInitVisitor struct {
-		VariableDeclaration func(VariableDeclaration)
+		VariableDeclaration func(*VariableDeclaration)
 		Expression          func(Expression)
 	}
 
@@ -190,7 +230,7 @@ type (
 	}
 
 	ForInStatementLeftVisitor struct {
-		VariableDeclaration func(VariableDeclaration)
+		VariableDeclaration func(*VariableDeclaration)
 		Pattern             func(Pattern)
 	}
 
@@ -206,21 +246,21 @@ type (
 	}
 
 	ForOfStatementLeftVisitor struct {
-		VariableDeclaration func(VariableDeclaration)
+		VariableDeclaration func(*VariableDeclaration)
 		Pattern             func(Pattern)
 	}
 
 	FunctionDeclaration struct {
-		ID        Identifier
+		ID        *Identifier
 		Params    []Pattern
-		Body      BlockStatement
+		Body      *BlockStatement
 		Generator bool
 		Async     bool
 	}
 
 	VariableDeclaration struct {
 		Kind         string
-		Declarations []VariableDeclarator
+		Declarations []*VariableDeclarator
 	}
 
 	VariableDeclarator struct {
@@ -240,7 +280,7 @@ type (
 
 	ArrayExpressionElementVisitor struct {
 		Expression    func(Expression)
-		SpreadElement func(SpreadElement)
+		SpreadElement func(*SpreadElement)
 	}
 
 	ObjectExpression struct {
@@ -252,8 +292,8 @@ type (
 	}
 
 	ObjectExpressionPropertyVisitor struct {
-		Property      func(Property)
-		SpreadElement func(SpreadElement)
+		Property      func(*Property)
+		SpreadElement func(*SpreadElement)
 	}
 
 	Property struct {
@@ -268,7 +308,7 @@ type (
 	FunctionExpression struct {
 		ID        *Identifier
 		Params    []Pattern
-		Body      BlockStatement
+		Body      *BlockStatement
 		Generator bool
 		Async     bool
 	}
@@ -315,7 +355,7 @@ type (
 
 	MemberExpressionObjectVisitor struct {
 		Expression func(Expression)
-		Super      func(Super)
+		Super      func(*Super)
 	}
 
 	ConditionalExpression struct {
@@ -335,7 +375,7 @@ type (
 
 	CallExpressionCalleeVisitor struct {
 		Expression func(Expression)
-		Super      func(Super)
+		Super      func(*Super)
 	}
 
 	CallExpressionArgument interface {
@@ -344,7 +384,7 @@ type (
 
 	CallExpressionArgumentVisitor struct {
 		Expression    func(Expression)
-		SpreadElement func(SpreadElement)
+		SpreadElement func(*SpreadElement)
 	}
 
 	NewExpression struct {
@@ -358,7 +398,7 @@ type (
 
 	NewExpressionArgumentVisitor struct {
 		Expression    func(Expression)
-		SpreadElement func(SpreadElement)
+		SpreadElement func(*SpreadElement)
 	}
 
 	SequenceExpression struct {
@@ -375,7 +415,7 @@ type (
 	}
 
 	ArrowFunctionExpressionBodyVisitor struct {
-		BlockStatement func(BlockStatement)
+		BlockStatement func(*BlockStatement)
 		Expression     func(Expression)
 	}
 
@@ -389,7 +429,7 @@ type (
 	}
 
 	TemplateLiteral struct {
-		Quasis      []TemplateElement
+		Quasis      []*TemplateElement
 		Expressions []Expression
 	}
 
@@ -415,8 +455,8 @@ type (
 	}
 
 	ObjectPatternPropertyVisitor struct {
-		AssignmentProperty func(AssignmentProperty)
-		RestElement        func(RestElement)
+		AssignmentProperty func(*AssignmentProperty)
+		RestElement        func(*RestElement)
 	}
 
 	AssignmentProperty struct {
@@ -452,32 +492,32 @@ type (
 	}
 
 	ClassBody struct {
-		Body []MethodDefinition
+		Body []*MethodDefinition
 	}
 
 	MethodDefinition struct {
 		Key      Expression
-		Value    FunctionExpression
+		Value    *FunctionExpression
 		Kind     string
 		Computed bool
 		Static   bool
 	}
 
 	ClassDeclaration struct {
-		ID         Identifier
+		ID         *Identifier
 		SuperClass Expression
-		Body       ClassBody
+		Body       *ClassBody
 	}
 
 	ClassExpression struct {
 		ID         *Identifier
 		SuperClass Expression
-		Body       ClassBody
+		Body       *ClassBody
 	}
 
 	MetaProperty struct {
-		Meta     Identifier
-		Property Identifier
+		Meta     *Identifier
+		Property *Identifier
 	}
 
 	ModuleDeclaration interface {
@@ -485,11 +525,15 @@ type (
 	}
 
 	ModuleDeclarationVisitor struct {
+		ImportDeclaration        func(*ImportDeclaration)
+		ExportNamedDeclaration   func(*ExportNamedDeclaration)
+		ExportDefaultDeclaration func(*ExportDefaultDeclaration)
+		ExportAllDeclaration     func(*ExportAllDeclaration)
 	}
 
 	ImportDeclaration struct {
 		Specifiers []ImportDeclarationSpecifier
-		Source     Literal
+		Source     *StringLiteral
 	}
 
 	ImportDeclarationSpecifier interface {
@@ -497,33 +541,33 @@ type (
 	}
 
 	ImportDeclarationSpecifierVisitor struct {
-		ImportSpecifier          func(ImportSpecifier)
-		ImportDefaultSpecifier   func(ImportDefaultSpecifier)
-		ImportNamespaceSpecifier func(ImportNamespaceSpecifier)
+		ImportSpecifier          func(*ImportSpecifier)
+		ImportDefaultSpecifier   func(*ImportDefaultSpecifier)
+		ImportNamespaceSpecifier func(*ImportNamespaceSpecifier)
 	}
 
 	ImportSpecifier struct {
-		Local    Identifier
-		Imported Identifier
+		Local    *Identifier
+		Imported *Identifier
 	}
 
 	ImportDefaultSpecifier struct {
-		Local Identifier
+		Local *Identifier
 	}
 
 	ImportNamespaceSpecifier struct {
-		Local Identifier
+		Local *Identifier
 	}
 
 	ExportNamedDeclaration struct {
 		Declaration Declaration
-		Specifiers  []ExportSpecifier
-		Source      Literal
+		Specifiers  []*ExportSpecifier
+		Source      *StringLiteral
 	}
 
 	ExportSpecifier struct {
-		Local    Identifier
-		Exported Identifier
+		Local    *Identifier
+		Exported *Identifier
 	}
 
 	ExportDefaultDeclaration struct {
@@ -535,25 +579,56 @@ type (
 	}
 
 	ExportDefaultDeclarationDeclarationVisitor struct {
-		AnonymousDefaultExportedFunctionDeclaration func(AnonymousDefaultExportedFunctionDeclaration)
-		FunctionDeclaration                         func(FunctionDeclaration)
-		AnonymousDefaultExportedClassDeclaration    func(AnonymousDefaultExportedClassDeclaration)
-		ClassDeclaration                            func(ClassDeclaration)
+		AnonymousDefaultExportedFunctionDeclaration func(*AnonymousDefaultExportedFunctionDeclaration)
+		FunctionDeclaration                         func(*FunctionDeclaration)
+		AnonymousDefaultExportedClassDeclaration    func(*AnonymousDefaultExportedClassDeclaration)
+		ClassDeclaration                            func(*ClassDeclaration)
 		Expression                                  func(Expression)
 	}
 
 	AnonymousDefaultExportedFunctionDeclaration struct {
 		Params    []Pattern
-		Body      BlockStatement
+		Body      *BlockStatement
 		Generator bool
 	}
 
 	AnonymousDefaultExportedClassDeclaration struct {
 		SuperClass Expression
-		Body       ClassBody
+		Body       *ClassBody
 	}
 
 	ExportAllDeclaration struct {
 		Source Literal
 	}
 )
+
+func (p *ExpressionStatement) VisitProgramBody(v ProgramBodyVisitor) { v.Statement(p) }
+func (p *BlockStatement) VisitProgramBody(v ProgramBodyVisitor) { v.Statement(p) }
+func (p *ImportDeclaration) VisitProgramBody(v ProgramBodyVisitor)   { v.ModuleDeclaration(p) }
+
+func (s *ExpressionStatement) VisitStatement(v StatementVisitor) { v.ExpressionStatement(s) }
+func (s *BlockStatement) VisitStatement(v StatementVisitor) { v.BlockStatement(s) }
+
+func (e *StringLiteral) VisitExpression(v ExpressionVisitor)  { v.Literal(e) }
+func (e *BooleanLiteral) VisitExpression(v ExpressionVisitor) { v.Literal(e) }
+func (e *NullLiteral) VisitExpression(v ExpressionVisitor)    { v.Literal(e) }
+func (e *NumberLiteral) VisitExpression(v ExpressionVisitor)  { v.Literal(e) }
+func (e *RegExpLiteral) VisitExpression(v ExpressionVisitor)  { v.Literal(e) }
+
+func (l *StringLiteral) VisitLiteral(v LiteralVisitor)  { v.StringLiteral(l) }
+func (l *BooleanLiteral) VisitLiteral(v LiteralVisitor) { v.BooleanLiteral(l) }
+func (l *NullLiteral) VisitLiteral(v LiteralVisitor)    { v.NullLiteral(l) }
+func (l *NumberLiteral) VisitLiteral(v LiteralVisitor)  { v.NumberLiteral(l) }
+func (l *RegExpLiteral) VisitLiteral(v LiteralVisitor)  { v.RegExpLiteral(l) }
+
+func (m *ImportDeclaration) VisitModuleDeclaration(v ModuleDeclarationVisitor) { v.ImportDeclaration(m) }
+
+func (i *ImportSpecifier) VisitImportDeclarationSpecifier(v ImportDeclarationSpecifierVisitor) {
+	v.ImportSpecifier(i)
+}
+func (i *ImportDefaultSpecifier) VisitImportDeclarationSpecifier(v ImportDeclarationSpecifierVisitor) {
+	v.ImportDefaultSpecifier(i)
+}
+func (i *ImportNamespaceSpecifier) VisitImportDeclarationSpecifier(v ImportDeclarationSpecifierVisitor) {
+	v.ImportNamespaceSpecifier(i)
+}

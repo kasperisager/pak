@@ -32,7 +32,7 @@ func Scan(runes []rune) (tokens []token.Token, err error) {
 	return tokens, nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-token
+// https://drafts.csswg.org/css-syntax/#consume-token
 func scanToken(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	switch peek(runes, 1) {
 	case '+', '.':
@@ -144,7 +144,7 @@ func scanWhitespace(offset int, runes []rune, tokens []token.Token) (int, []rune
 	return offset, runes, append(tokens, t), nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-comments
+// https://drafts.csswg.org/css-syntax/#consume-comments
 func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	for len(runes) > 0 {
 		if peek(runes, 1) == '*' && peek(runes, 2) == '/' {
@@ -160,7 +160,7 @@ func scanComment(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 	}
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-numeric-token
+// https://drafts.csswg.org/css-syntax/#consume-numeric-token
 func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
 
@@ -207,7 +207,7 @@ func scanNumeric(offset int, runes []rune, tokens []token.Token) (int, []rune, [
 	return offset, runes, append(tokens, t), nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-number
+// https://drafts.csswg.org/css-syntax/#consume-number
 func scanNumber(offset int, runes []rune) (int, []rune, float64, bool) {
 	value := 0.0
 	sign := 1.0
@@ -293,7 +293,7 @@ func scanExponent(offset int, runes []rune, base float64) (int, []rune, float64)
 	return offset, runes, base / math.Pow10(sign*value)
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-a-string-token
+// https://drafts.csswg.org/css-syntax/#consume-a-string-token
 func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
 	end := peek(runes, 1)
@@ -358,7 +358,7 @@ func scanString(offset int, runes []rune, tokens []token.Token) (int, []rune, []
 	}
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-a-name
+// https://drafts.csswg.org/css-syntax/#consume-a-name
 func scanName(offset int, runes []rune) (int, []rune, string, error) {
 	var result strings.Builder
 
@@ -390,7 +390,7 @@ func scanName(offset int, runes []rune) (int, []rune, string, error) {
 	return offset, runes, result.String(), nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-escaped-code-point
+// https://drafts.csswg.org/css-syntax/#consume-escaped-code-point
 func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
 	if isHexDigit(peek(runes, 1)) {
 		code := hexValue(peek(runes, 1))
@@ -427,7 +427,7 @@ func scanEscape(offset int, runes []rune) (int, []rune, rune, error) {
 	return offset + 1, runes[1:], value, nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-ident-like-token
+// https://drafts.csswg.org/css-syntax/#consume-ident-like-token
 func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []token.Token, error) {
 	start := offset
 
@@ -471,7 +471,7 @@ func scanIdent(offset int, runes []rune, tokens []token.Token) (int, []rune, []t
 	return offset, runes, append(tokens, t), nil
 }
 
-// See: https://drafts.csswg.org/css-syntax/#consume-url-token
+// https://drafts.csswg.org/css-syntax/#consume-url-token
 func scanUrl(offset int, runes []rune, tokens []token.Token, start int) (int, []rune, []token.Token, error) {
 	for isWhitespace(peek(runes, 1)) {
 		offset, runes = offset+1, runes[1:]
@@ -567,17 +567,17 @@ func isBetween(rune rune, lower rune, upper rune) bool {
 	return rune >= lower && rune <= upper
 }
 
-// See: https://drafts.csswg.org/css-syntax/#digit
+// https://drafts.csswg.org/css-syntax/#digit
 func isDigit(rune rune) bool {
 	return isBetween(rune, '0', '9')
 }
 
-// See: https://drafts.csswg.org/css-syntax/#hex-digit
+// https://drafts.csswg.org/css-syntax/#hex-digit
 func isHexDigit(rune rune) bool {
 	return isDigit(rune) || isBetween(rune, 'A', 'F') || isBetween(rune, 'a', 'f')
 }
 
-// See: https://drafts.csswg.org/css-syntax/#newline
+// https://drafts.csswg.org/css-syntax/#newline
 func isNewline(rune rune) bool {
 	switch rune {
 	case '\u000A', '\u000C', '\u000D':
@@ -587,7 +587,7 @@ func isNewline(rune rune) bool {
 	return false
 }
 
-// See: https://drafts.csswg.org/css-syntax/#whitespace
+// https://drafts.csswg.org/css-syntax/#whitespace
 func isWhitespace(rune rune) bool {
 	switch rune {
 	case '\u0009', '\u0020':
@@ -597,42 +597,42 @@ func isWhitespace(rune rune) bool {
 	return isNewline(rune)
 }
 
-// See: https://drafts.csswg.org/css-syntax/#uppercase-letter
+// https://drafts.csswg.org/css-syntax/#uppercase-letter
 func isUppercaseLetter(rune rune) bool {
 	return isBetween(rune, 'A', 'Z')
 }
 
-// See: https://drafts.csswg.org/css-syntax/#lowercase-letter
+// https://drafts.csswg.org/css-syntax/#lowercase-letter
 func isLowercaseLetter(rune rune) bool {
 	return isBetween(rune, 'a', 'z')
 }
 
-// See: https://drafts.csswg.org/css-syntax/#letter
+// https://drafts.csswg.org/css-syntax/#letter
 func isLetter(rune rune) bool {
 	return isUppercaseLetter(rune) || isLowercaseLetter(rune)
 }
 
-// See: https://drafts.csswg.org/css-syntax/#non-ascii-code-point
+// https://drafts.csswg.org/css-syntax/#non-ascii-code-point
 func isAscii(rune rune) bool {
 	return rune < '\u0080'
 }
 
-// See: https://drafts.csswg.org/css-syntax/#name-start-code-point
+// https://drafts.csswg.org/css-syntax/#name-start-code-point
 func isNameStart(rune rune) bool {
 	return isLetter(rune) || !isAscii(rune) || rune == '_'
 }
 
-// See: https://drafts.csswg.org/css-syntax/#name-code-point
+// https://drafts.csswg.org/css-syntax/#name-code-point
 func isName(rune rune) bool {
 	return isNameStart(rune) || isDigit(rune) || rune == '-'
 }
 
-// See: https://drafts.csswg.org/css-syntax/#non-printable-code-point
+// https://drafts.csswg.org/css-syntax/#non-printable-code-point
 func isNonPrintable(rune rune) bool {
 	return isBetween(rune, 0x0000, 0x0008) || rune == 0x000b || isBetween(rune, 0x000e, 0x001f) || rune == 0x007f
 }
 
-// See: https://infra.spec.whatwg.org/#surrogate
+// https://infra.spec.whatwg.org/#surrogate
 func isSurrogate(rune rune) bool {
 	return isBetween(rune, 0xd800, 0xdfff)
 }
@@ -653,7 +653,7 @@ func hexValue(rune rune) int {
 	return -1
 }
 
-// See: https://drafts.csswg.org/css-syntax/#would-start-an-identifier
+// https://drafts.csswg.org/css-syntax/#would-start-an-identifier
 func startsIdentifier(runes []rune) bool {
 	switch peek(runes, 1) {
 	case '-':
@@ -666,12 +666,12 @@ func startsIdentifier(runes []rune) bool {
 	return isNameStart(peek(runes, 1))
 }
 
-// See: https://drafts.csswg.org/css-syntax/#starts-with-a-valid-escape
+// https://drafts.csswg.org/css-syntax/#starts-with-a-valid-escape
 func startsEscape(runes []rune) bool {
 	return peek(runes, 1) == '\\' && !isNewline(peek(runes, 2))
 }
 
-// See: https://drafts.csswg.org/css-syntax/#starts-with-a-number
+// https://drafts.csswg.org/css-syntax/#starts-with-a-number
 func startsNumber(runes []rune) bool {
 	switch peek(runes, 1) {
 	case '+', '-':

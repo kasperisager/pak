@@ -1,20 +1,18 @@
 package asset
 
-import (
-	"net/url"
+type (
+	Graph struct {
+		nodes map[Asset]bool
+		edges map[Asset]edges
+	}
+
+	edges struct {
+		incoming relations
+		outgoing relations
+	}
+
+	relations map[Asset]Relation
 )
-
-type references map[Asset]Reference
-
-type edges struct {
-	incoming references
-	outgoing references
-}
-
-type Graph struct {
-	nodes map[Asset]bool
-	edges map[Asset]edges
-}
 
 func NewGraph() *Graph {
 	return &Graph{
@@ -42,21 +40,21 @@ func (g *Graph) Has(asset Asset) bool {
 }
 
 func (g *Graph) Add(asset Asset) bool {
-	if g.nodes[asset] {
+	if g.Has(asset) {
 		return false
 	}
 
 	g.nodes[asset] = true
 	g.edges[asset] = edges{
-		incoming: make(references),
-		outgoing: make(references),
+		incoming: make(relations),
+		outgoing: make(relations),
 	}
 
 	return true
 }
 
 func (g *Graph) Remove(asset Asset) bool {
-	if !g.nodes[asset] {
+	if !g.Has(asset) {
 		return false
 	}
 
@@ -74,13 +72,13 @@ func (g *Graph) Remove(asset Asset) bool {
 	return true
 }
 
-func (g *Graph) Reference(from Asset, to Asset, reference Reference) bool {
-	if !g.nodes[from] || !g.nodes[to] {
+func (g *Graph) Relation(from Asset, to Asset, relation Relation) bool {
+	if !g.Has(from) || !g.Has(to) {
 		return false
 	}
 
-	g.edges[from].outgoing[to] = reference
-	g.edges[to].incoming[from] = reference
+	g.edges[from].outgoing[to] = relation
+	g.edges[to].incoming[from] = relation
 
 	return true
 }
@@ -109,17 +107,17 @@ func (g *Graph) Leaves() []Asset {
 	return leaves
 }
 
-func (g *Graph) Incoming(asset Asset) ([]Asset, []Reference, bool) {
+func (g *Graph) Incoming(asset Asset) ([]Asset, []Relation, bool) {
 	if edges, ok := g.edges[asset]; ok {
 		assets := make([]Asset, 0, len(edges.incoming))
-		references := make([]Reference, 0, len(edges.incoming))
+		relations := make([]Relation, 0, len(edges.incoming))
 
-		for asset, reference := range edges.incoming {
+		for asset, relation := range edges.incoming {
 			assets = append(assets, asset)
-			references = append(references, reference)
+			relations = append(relations, relation)
 		}
 
-		return assets, references, true
+		return assets, relations, true
 	}
 
 	return nil, nil, false
@@ -133,17 +131,17 @@ func (g *Graph) Indegree(asset Asset) (int, bool) {
 	return 0, false
 }
 
-func (g *Graph) Outgoing(asset Asset) ([]Asset, []Reference, bool) {
+func (g *Graph) Outgoing(asset Asset) ([]Asset, []Relation, bool) {
 	if edges, ok := g.edges[asset]; ok {
 		assets := make([]Asset, 0, len(edges.outgoing))
-		references := make([]Reference, 0, len(edges.outgoing))
+		relations := make([]Relation, 0, len(edges.outgoing))
 
-		for asset, reference := range edges.outgoing {
+		for asset, relation := range edges.outgoing {
 			assets = append(assets, asset)
-			references = append(references, reference)
+			relations = append(relations, relation)
 		}
 
-		return assets, references, true
+		return assets, relations, true
 	}
 
 	return nil, nil, false
@@ -157,11 +155,9 @@ func (g *Graph) Outdegree(asset Asset) (int, bool) {
 	return 0, false
 }
 
-func (g *Graph) Lookup(u *url.URL) (Asset, bool) {
+func (g *Graph) Lookup(query Query) (Asset, bool) {
 	for asset, _ := range g.nodes {
-		v := asset.URL()
-
-		if v.Scheme == u.Scheme && v.Host == v.Host && v.Path == u.Path {
+		if query(asset) {
 			return asset, true
 		}
 	}
@@ -174,10 +170,10 @@ func (g *Graph) Merge(target Asset, source Asset) bool {
 		return false
 	}
 
-	assets, references, _ := g.Outgoing(source)
+	assets, relations, _ := g.Outgoing(source)
 
 	for i, source := range assets {
-		g.Reference(target, source, references[i])
+		g.Relation(target, source, relations[i])
 	}
 
 	g.Remove(source)

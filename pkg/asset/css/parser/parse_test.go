@@ -549,6 +549,6 @@ func TestParse(t *testing.T) {
 		ast, err := Parse(tokens)
 		assert.Nil(t, err, test.input)
 
-		assert.EqualValues(t, test.styleSheet, ast, test.input)
+		assert.Equal(t, test.styleSheet, ast, test.input)
 	}
 }

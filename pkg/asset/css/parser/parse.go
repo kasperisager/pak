@@ -633,15 +633,23 @@ func parseDeclaration(offset int, tokens []token.Token) (int, []token.Token, *as
 }
 
 func parseComponent(offset int, tokens []token.Token) (int, []token.Token, []token.Token, error) {
+	component := tokens[:1]
+
 	switch peek(tokens, 1).(type) {
 	case token.OpenParen, token.Function:
-		return parseParenBlock(offset+1, tokens[1:])
+		offset, tokens, block, err := parseParenBlock(offset+1, tokens[1:])
+
+		if err != nil {
+			return offset, tokens, nil, err
+		}
+
+		return offset, tokens, append(component, block...), nil
 
 	case nil:
 		return offset, tokens, nil, nil
 
 	default:
-		return offset + 1, tokens[1:], tokens[:1], nil
+		return offset + 1, tokens[1:], component, nil
 	}
 }
 
@@ -649,9 +657,9 @@ func parseParenBlock(offset int, tokens []token.Token) (int, []token.Token, []to
 	var block []token.Token
 
 	for {
-		switch peek(tokens, 1).(type) {
+		switch next := peek(tokens, 1).(type) {
 		case token.CloseParen:
-			return offset + 1, tokens[1:], block, nil
+			return offset + 1, tokens[1:], append(block, next), nil
 
 		case nil:
 			return offset, tokens, block, SyntaxError{

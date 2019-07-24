@@ -22,6 +22,21 @@ func writeStyleSheet(w io.Writer, styleSheet *ast.StyleSheet) {
 
 func writeRule(w io.Writer, rule ast.Rule) {
 	switch rule := rule.(type) {
+	case *ast.StyleRule:
+		for i, selector := range rule.Selectors {
+			if i != 0 {
+				fmt.Fprintf(w, ",")
+			}
+
+			writeSelector(w, selector)
+		}
+
+		fmt.Fprintf(w, "{")
+
+		writeDeclarationList(w, rule.Declarations)
+
+		fmt.Fprintf(w, "}")
+
 	case *ast.ImportRule:
 		fmt.Fprintf(w, "@import \"%s\"", rule.URL.String())
 
@@ -37,32 +52,13 @@ func writeRule(w io.Writer, rule ast.Rule) {
 
 		fmt.Fprintf(w, ";")
 
-	case *ast.StyleRule:
-		for i, selector := range rule.Selectors {
-			if i != 0 {
-				fmt.Fprintf(w, ",")
-			}
-
-			writeSelector(w, selector)
-		}
-
-		fmt.Fprintf(w, "{")
-
-		for i, declaration := range rule.Declarations {
-			if i != 0 {
-				fmt.Fprintf(w, ";")
-			}
-
-			writeDeclaration(w, declaration)
-		}
-
-		fmt.Fprintf(w, "}")
-
 	case *ast.MediaRule:
-		fmt.Fprintf(w, "@media ")
+		fmt.Fprintf(w, "@media")
 
 		for i, mediaQuery := range rule.Conditions {
-			if i != 0 {
+			if i == 0 {
+				fmt.Fprintf(w, " ")
+			} else {
 				fmt.Fprintf(w, ",")
 			}
 
@@ -72,6 +68,13 @@ func writeRule(w io.Writer, rule ast.Rule) {
 		fmt.Fprintf(w, "{")
 
 		writeStyleSheet(w, rule.StyleSheet)
+
+		fmt.Fprintf(w, "}")
+
+	case *ast.FontFaceRule:
+		fmt.Fprintf(w, "@font-face{")
+
+		writeDeclarationList(w, rule.Declarations)
 
 		fmt.Fprintf(w, "}")
 	}
@@ -102,6 +105,19 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 
 	case *ast.TypeSelector:
 		fmt.Fprintf(w, "%s", selector.Name)
+
+	case *ast.PseudoSelector:
+		fmt.Fprintf(w, "%s", selector.Name)
+
+		if selector.Functional {
+			fmt.Fprintf(w, "(")
+
+			for _, token := range selector.Value {
+				writeToken(w, token)
+			}
+
+			fmt.Fprintf(w, ")")
+		}
 
 	case *ast.CompoundSelector:
 		writeSelector(w, selector.Left)
@@ -136,6 +152,16 @@ func writeDeclaration(w io.Writer, declaration *ast.Declaration) {
 	}
 }
 
+func writeDeclarationList(w io.Writer, declarations []*ast.Declaration) {
+	for i, declaration := range declarations {
+		if i != 0 {
+			fmt.Fprintf(w, ";")
+		}
+
+		writeDeclaration(w, declaration)
+	}
+}
+
 func writeToken(w io.Writer, t token.Token) {
 	switch t := t.(type) {
 	case token.Ident:
@@ -155,6 +181,9 @@ func writeToken(w io.Writer, t token.Token) {
 
 	case token.Url:
 		fmt.Fprintf(w, "url(%s)", t.Value)
+
+	case token.Delim:
+		fmt.Fprintf(w, "%c", t.Value)
 
 	case token.Number:
 		fmt.Fprintf(w, "%s", strconv.FormatFloat(t.Value, 'f', -1, 64))

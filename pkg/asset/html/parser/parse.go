@@ -189,7 +189,7 @@ func parseHeadChild(offset int, tokens []token.Token) (int, []token.Token, *ast.
 			element := createElement(next)
 			return offset + 1, tokens[1:], element, nil
 
-		case "title", "script":
+		case "title", "script", "style":
 			offset, tokens, text, err := parseText(offset+1, tokens[1:])
 
 			if err != nil {
@@ -217,27 +217,6 @@ func parseHeadChild(offset int, tokens []token.Token) (int, []token.Token, *ast.
 	}
 
 	return offset, tokens, nil, nil
-}
-
-func parseText(offset int, tokens []token.Token) (int, []token.Token, *ast.Text, error) {
-	var runes []rune
-
-	for len(tokens) > 0 {
-		switch next := peek(tokens, 1).(type) {
-		case token.Character:
-			runes = append(runes, next.Data)
-			offset, tokens = offset+1, tokens[1:]
-			continue
-		}
-
-		break
-	}
-
-	if runes == nil {
-		return offset, tokens, nil, nil
-	}
-
-	return offset, tokens, &ast.Text{Data: string(runes)}, nil
 }
 
 func parseBody(offset int, tokens []token.Token) (int, []token.Token, *ast.Element, error) {
@@ -276,7 +255,24 @@ func parseBody(offset int, tokens []token.Token) (int, []token.Token, *ast.Eleme
 		}
 	}
 
-	offset, tokens = skipWhitespace(offset, tokens)
+	for len(tokens) > 0 {
+		var (
+			child ast.Node
+			err   error
+		)
+
+		offset, tokens, child, err = parseBodyChild(offset, tokens)
+
+		if err != nil {
+			return offset, tokens, nil, err
+		}
+
+		if child == nil {
+			break
+		}
+
+		body.Children = append(body.Children, child)
+	}
 
 	switch next := peek(tokens, 1).(type) {
 	case token.EndTag:
@@ -287,6 +283,75 @@ func parseBody(offset int, tokens []token.Token) (int, []token.Token, *ast.Eleme
 	}
 
 	return offset, tokens, body, nil
+}
+
+func parseBodyChild(offset int, tokens []token.Token) (int, []token.Token, ast.Node, error) {
+	switch next := peek(tokens, 1).(type) {
+	case token.StartTag:
+		element := createElement(next)
+
+		offset, tokens = offset+1, tokens[1:]
+
+		if element.IsVoid() {
+			return offset, tokens, element, nil
+		}
+
+		for {
+			switch next := peek(tokens, 1).(type) {
+			case token.EndTag:
+				if next.Name == element.Name {
+					return offset + 1, tokens[1:], element, nil
+				}
+
+				return offset, tokens, nil, SyntaxError{
+					Offset:  offset,
+					Message: "unexpected token, expected <" + element.Name + "> tag",
+				}
+
+			default:
+				var (
+					child ast.Node
+					err   error
+				)
+
+				offset, tokens, child, err = parseBodyChild(offset, tokens)
+
+				if err != nil {
+					return offset, tokens, nil, err
+				}
+
+				if child != nil {
+					element.Children = append(element.Children, child)
+				}
+			}
+		}
+
+	case token.Character:
+		return parseText(offset, tokens)
+	}
+
+	return offset, tokens, nil, nil
+}
+
+func parseText(offset int, tokens []token.Token) (int, []token.Token, *ast.Text, error) {
+	var runes []rune
+
+	for len(tokens) > 0 {
+		switch next := peek(tokens, 1).(type) {
+		case token.Character:
+			runes = append(runes, next.Data)
+			offset, tokens = offset+1, tokens[1:]
+			continue
+		}
+
+		break
+	}
+
+	if runes == nil {
+		return offset, tokens, nil, nil
+	}
+
+	return offset, tokens, &ast.Text{Data: string(runes)}, nil
 }
 
 func createElement(tag token.StartTag) *ast.Element {

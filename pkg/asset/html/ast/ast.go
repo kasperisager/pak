@@ -6,9 +6,8 @@ type (
 	}
 
 	NodeVisitor struct {
-		Element   func(*Element)
-		Attribute func(*Attribute)
-		Text      func(*Text)
+		Element func(*Element)
+		Text    func(*Text)
 	}
 
 	Element struct {
@@ -27,9 +26,8 @@ type (
 	}
 )
 
-func (e *Element) VisitNode(v NodeVisitor)   { v.Element(e) }
-func (a *Attribute) VisitNode(v NodeVisitor) { v.Attribute(a) }
-func (t *Text) VisitNode(v NodeVisitor)      { v.Text(t) }
+func (e *Element) VisitNode(v NodeVisitor) { v.Element(e) }
+func (t *Text) VisitNode(v NodeVisitor)    { v.Text(t) }
 
 func (e *Element) Attribute(name string) (string, bool) {
 	for _, attribute := range e.Attributes {

@@ -18,8 +18,10 @@ type (
 	}
 
 	Reference struct {
-		url   *url.URL
-		flags asset.Flags
+		url         *url.URL
+		flags       asset.Flags
+		Attribute   *ast.Attribute
+		Conditional bool
 	}
 
 	Embed struct {
@@ -98,6 +100,10 @@ func (r *Reference) URL() *url.URL {
 	return r.url
 }
 
+func (r *Reference) Rewrite(to *url.URL) {
+	r.url = to
+}
+
 func (r *Reference) Flags() asset.Flags {
 	return r.flags
 }
@@ -123,56 +129,93 @@ func collectReferences(
 	element *ast.Element,
 	references []asset.Reference,
 ) []asset.Reference {
+	var flags asset.Flags
+
 	switch element.Name {
 	case "link":
-		rel, _ := element.Attribute("rel")
-		href, ok := element.Attribute("href")
+		href := element.Attribute("href")
 
-		if !ok {
+		if href == nil {
 			break
 		}
 
-		url, err := url.Parse(href)
+		url, err := base.Parse(href.Value)
 
 		if err != nil {
 			break
 		}
 
-		switch rel {
-		case "stylesheet":
+		typ := element.Attribute("type")
+
+		if typ != nil && typ.Value != "" {
+			flags = flags.Set("mediaType", typ.Value)
+		}
+
+		media := element.Attribute("media")
+
+		conditional := media != nil && media.Value != "" && media.Value != "all"
+
+		rel := element.Attribute("rel")
+
+		if rel == nil {
+			break
+		}
+
+		switch rel.Value {
+		case "stylesheet", "icon", "preload":
 			references = append(references, &Reference{
-				url: base.ResolveReference(url),
+				url:         url,
+				flags:       flags,
+				Attribute:   href,
+				Conditional: conditional,
+			})
+
+		case "manifest":
+			switch asset.MediaTypeByURL(url) {
+			case "application/json":
+				flags = flags.Set("mediaType", "application/manifest+json")
+			}
+
+			references = append(references, &Reference{
+				url:         url,
+				flags:       flags,
+				Attribute:   href,
+				Conditional: conditional,
 			})
 		}
 
 	case "script":
-		typ, _ := element.Attribute("type")
-		src, ok := element.Attribute("src")
+		src := element.Attribute("src")
 
-		if !ok {
+		if src == nil {
 			break
 		}
 
-		url, err := url.Parse(src)
+		url, err := url.Parse(src.Value)
 
 		if err != nil {
 			break
 		}
 
-		switch typ {
+		typ := element.Attribute("type")
+
+		if typ == nil {
+			break
+		}
+
+		switch typ.Value {
 		case "importmap":
 			references = append(references, &Reference{
-				url: base.ResolveReference(url),
+				url:   url,
+				flags: flags.Set("mediaType", "application/importmap+json"),
+				Attribute: src,
 			})
 
 		default:
-			var flags asset.Flags
-
-			flags = flags.Set("module", typ == "module")
-
 			references = append(references, &Reference{
-				url:   base.ResolveReference(url),
-				flags: flags,
+				url:   url,
+				flags: flags.Set("module", typ.Value == "module"),
+				Attribute: src,
 			})
 		}
 	}
@@ -201,15 +244,16 @@ func collectEmbeds(
 		})
 
 	case "script":
-		typ, _ := element.Attribute("type")
-		_, ok := element.Attribute("src")
+		src := element.Attribute("src")
 
-		if ok {
+		if src != nil {
 			break
 		}
 
-		switch typ {
-		case "importmap":
+		typ := element.Attribute("type")
+
+		switch {
+		case typ != nil && typ.Value == "importmap":
 			embeds = append(embeds, &Embed{
 				mediaType: "application/importmap+json",
 				data:      []byte(element.Text()),
@@ -219,7 +263,7 @@ func collectEmbeds(
 		default:
 			var flags asset.Flags
 
-			flags = flags.Set("module", typ == "module")
+			flags = flags.Set("module", typ != nil && typ.Value == "module")
 
 			embeds = append(embeds, &Embed{
 				mediaType: "application/javascript",

@@ -6,7 +6,6 @@ type (
 	}
 
 	TokenVisitor struct {
-		Whitespace     func(Whitespace)
 		Newline        func(Newline)
 		Keyword        func(Keyword)
 		Identifier     func(Identifier)
@@ -19,10 +18,6 @@ type (
 		TemplateHead   func(TemplateHead)
 		TemplateMiddle func(TemplateMiddle)
 		TemplateTail   func(TemplateTail)
-	}
-
-	Whitespace struct {
-		Offset int
 	}
 
 	Newline struct {
@@ -84,7 +79,6 @@ type (
 	}
 )
 
-func (t Whitespace) VisitToken(v TokenVisitor) { v.Whitespace(t) }
 func (t Keyword) VisitToken(v TokenVisitor)    { v.Keyword(t) }
 func (t Identifier) VisitToken(v TokenVisitor) { v.Identifier(t) }
 func (t Punctuator) VisitToken(v TokenVisitor) { v.Punctuator(t) }

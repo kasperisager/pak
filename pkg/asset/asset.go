@@ -26,6 +26,7 @@ type (
 	Reference interface {
 		Relation
 		URL() *url.URL
+		Rewrite(*url.URL)
 		Flags() Flags
 	}
 

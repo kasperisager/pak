@@ -22,14 +22,7 @@ func ByName(name string) Query {
 
 func ByAttribute(name string, value string) Query {
 	return func(element *Element) bool {
-		found, ok := element.Attribute(name)
-
-		if ok {
-			if found == value {
-				return true
-			}
-		}
-
-		return false
+		attribute := element.Attribute(name)
+		return attribute != nil && attribute.Value == value
 	}
 }

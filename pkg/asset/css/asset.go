@@ -3,16 +3,13 @@ package css
 import (
 	"bytes"
 	"fmt"
-	"net/url"
-	"path"
-	"path/filepath"
-
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/parser"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
+	"net/url"
 )
 
 type (
@@ -95,6 +92,15 @@ func (r *Reference) URL() *url.URL {
 	return r.url
 }
 
+func (r *Reference) Rewrite(to *url.URL) {
+	r.url = to
+
+	switch rule := r.Rule.(type) {
+	case *ast.ImportRule:
+		rule.URL = to
+	}
+}
+
 func (r *Reference) Flags() asset.Flags {
 	return nil
 }
@@ -110,7 +116,7 @@ func collectReferences(
 			references = append(
 				references,
 				&Reference{
-					url:  base.ResolveReference(rule.URL),
+					url:  rule.URL,
 					Rule: rule,
 				},
 			)
@@ -126,45 +132,11 @@ func collectReferences(
 	return references
 }
 
-func rebaseReferences(styleSheet *ast.StyleSheet, from *url.URL, to *url.URL) {
-	for _, rule := range styleSheet.Rules {
-		switch rule := rule.(type) {
-		case *ast.ImportRule:
-			rule.URL = rebaseUrl(rule.URL, from, to)
-
-		case *ast.MediaRule:
-			rebaseReferences(rule.StyleSheet, from, to)
-		}
-	}
-}
-
-func rebaseUrl(reference *url.URL, from *url.URL, to *url.URL) *url.URL {
-	if reference.IsAbs() {
-		return reference
-	}
-
-	from = from.ResolveReference(reference)
-
-	if from.Scheme == to.Scheme && from.Host == to.Host {
-		if path.IsAbs(reference.Path) {
-			return &url.URL{Path: from.Path}
-		}
-
-		path, _ := filepath.Rel(path.Dir(to.Path), from.Path)
-
-		return &url.URL{Path: path}
-	}
-
-	return from
-}
-
 func mergeRule(rule ast.Rule, from *Asset, to *Asset) bool {
 	for i, found := range to.StyleSheet.Rules {
 		if found == rule {
 			switch rule.(type) {
 			case *ast.ImportRule:
-				rebaseReferences(from.StyleSheet, from.url, to.url)
-
 				to.StyleSheet.Rules = append(
 					to.StyleSheet.Rules[:i],
 					append(

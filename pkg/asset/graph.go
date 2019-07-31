@@ -11,7 +11,7 @@ type (
 		outgoing relations
 	}
 
-	relations map[Asset]Relation
+	relations map[Relation]Asset
 )
 
 func NewGraph() *Graph {
@@ -53,17 +53,25 @@ func (g *Graph) Add(asset Asset) bool {
 	return true
 }
 
-func (g *Graph) Remove(asset Asset) bool {
+func (g *Graph) Delete(asset Asset) bool {
 	if !g.Has(asset) {
 		return false
 	}
 
-	for ref, _ := range g.edges[asset].incoming {
-		delete(g.edges[ref].outgoing, asset)
+	for _, edge := range g.edges[asset].incoming {
+		for relation, found := range g.edges[edge].outgoing {
+			if found == asset {
+				delete(g.edges[edge].outgoing, relation)
+			}
+		}
 	}
 
-	for ref, _ := range g.edges[asset].outgoing {
-		delete(g.edges[ref].incoming, asset)
+	for _, edge := range g.edges[asset].outgoing {
+		for relation, found := range g.edges[edge].incoming {
+			if found == asset {
+				delete(g.edges[edge].incoming, relation)
+			}
+		}
 	}
 
 	delete(g.nodes, asset)
@@ -72,22 +80,36 @@ func (g *Graph) Remove(asset Asset) bool {
 	return true
 }
 
-func (g *Graph) Relation(from Asset, to Asset, relation Relation) bool {
+func (g *Graph) Relate(from Asset, to Asset, relation Relation) bool {
 	if !g.Has(from) || !g.Has(to) {
 		return false
 	}
 
-	g.edges[from].outgoing[to] = relation
-	g.edges[to].incoming[from] = relation
+	g.edges[from].outgoing[relation] = to
+	g.edges[to].incoming[relation] = from
 
 	return true
+}
+
+func (g *Graph) Relation(from Asset, to Asset) (Relation, bool) {
+	if edges, ok := g.Outgoing(from); ok {
+		for relation, asset := range edges {
+			if to == asset {
+				return relation, true
+			}
+		}
+	}
+
+	return nil, false
 }
 
 func (g *Graph) Roots() []Asset {
 	roots := make([]Asset, 0)
 
 	for asset, _ := range g.nodes {
-		if len(g.edges[asset].incoming) == 0 {
+		indegree, _ := g.Indegree(asset)
+
+		if indegree == 0 {
 			roots = append(roots, asset)
 		}
 	}
@@ -99,7 +121,9 @@ func (g *Graph) Leaves() []Asset {
 	leaves := make([]Asset, 0)
 
 	for asset, _ := range g.nodes {
-		if len(g.edges[asset].outgoing) == 0 {
+		outdegree, _ := g.Outdegree(asset)
+
+		if outdegree == 0 {
 			leaves = append(leaves, asset)
 		}
 	}
@@ -107,20 +131,18 @@ func (g *Graph) Leaves() []Asset {
 	return leaves
 }
 
-func (g *Graph) Incoming(asset Asset) ([]Asset, []Relation, bool) {
+func (g *Graph) Incoming(asset Asset) (map[Relation]Asset, bool) {
 	if edges, ok := g.edges[asset]; ok {
-		assets := make([]Asset, 0, len(edges.incoming))
-		relations := make([]Relation, 0, len(edges.incoming))
+		result := make(map[Relation]Asset, len(edges.incoming))
 
-		for asset, relation := range edges.incoming {
-			assets = append(assets, asset)
-			relations = append(relations, relation)
+		for relation, asset := range edges.incoming {
+			result[relation] = asset
 		}
 
-		return assets, relations, true
+		return result, true
 	}
 
-	return nil, nil, false
+	return nil, false
 }
 
 func (g *Graph) Indegree(asset Asset) (int, bool) {
@@ -131,20 +153,18 @@ func (g *Graph) Indegree(asset Asset) (int, bool) {
 	return 0, false
 }
 
-func (g *Graph) Outgoing(asset Asset) ([]Asset, []Relation, bool) {
+func (g *Graph) Outgoing(asset Asset) (map[Relation]Asset, bool) {
 	if edges, ok := g.edges[asset]; ok {
-		assets := make([]Asset, 0, len(edges.outgoing))
-		relations := make([]Relation, 0, len(edges.outgoing))
+		result := make(map[Relation]Asset, len(edges.outgoing))
 
-		for asset, relation := range edges.outgoing {
-			assets = append(assets, asset)
-			relations = append(relations, relation)
+		for relation, asset := range edges.outgoing {
+			result[relation] = asset
 		}
 
-		return assets, relations, true
+		return result, true
 	}
 
-	return nil, nil, false
+	return nil, false
 }
 
 func (g *Graph) Outdegree(asset Asset) (int, bool) {
@@ -156,7 +176,7 @@ func (g *Graph) Outdegree(asset Asset) (int, bool) {
 }
 
 func (g *Graph) Lookup(query Query) (Asset, bool) {
-	for asset, _ := range g.nodes {
+	for asset := range g.nodes {
 		if query(asset) {
 			return asset, true
 		}
@@ -170,13 +190,57 @@ func (g *Graph) Merge(target Asset, source Asset) bool {
 		return false
 	}
 
-	assets, relations, _ := g.Outgoing(source)
+	relation, ok := g.Relation(target, source)
 
-	for i, source := range assets {
-		g.Relation(target, source, relations[i])
+	if !ok {
+		return false
 	}
 
-	g.Remove(source)
+	ok = target.Merge(source, relation)
+
+	if !ok {
+		return false
+	}
+
+	if edges, ok := g.Outgoing(source); ok {
+		for relation, related := range edges {
+			if related != target {
+				switch relation := relation.(type) {
+				case Reference:
+					relation.Rewrite(
+						rebase(
+							relation.URL(),
+							source.URL(),
+							target.URL(),
+						),
+					)
+				}
+
+				g.Relate(target, related, relation)
+			}
+		}
+	}
+
+	if edges, ok := g.Incoming(source); ok {
+		for relation, related := range edges {
+			if related != target {
+				switch relation := relation.(type) {
+				case Reference:
+					relation.Rewrite(
+						rewrite(
+							related.URL(),
+							relation.URL(),
+							target.URL(),
+						),
+					)
+				}
+
+				g.Relate(related, target, relation)
+			}
+		}
+	}
+
+	g.Delete(source)
 
 	return true
 }

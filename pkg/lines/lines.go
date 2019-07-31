@@ -1,4 +1,4 @@
-package runes
+package lines
 
 import (
 	"sort"

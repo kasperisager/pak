@@ -13,21 +13,23 @@ import (
 	"strings"
 
 	"github.com/kasperisager/pak/pkg/asset"
+	"github.com/kasperisager/pak/pkg/cli"
+
 	"github.com/kasperisager/pak/pkg/asset/blob"
 	"github.com/kasperisager/pak/pkg/asset/css"
 	"github.com/kasperisager/pak/pkg/asset/html"
 	"github.com/kasperisager/pak/pkg/asset/importmap"
 	"github.com/kasperisager/pak/pkg/asset/js"
-	"github.com/kasperisager/pak/pkg/cli"
+	"github.com/kasperisager/pak/pkg/asset/webmanifest"
 )
 
-func Build(cmd *cli.Command) {
+func Command(cmd *cli.Command) {
 	flag := cmd.Flag()
 
 	var (
-		out    = *flag.String("o", "dist", "The directory to write files to")
-		root   = *flag.String("root", "", "The root directory of entry files")
-		vendor = *flag.String("vendor", "vendor", "The vendor directory of external files")
+		out  = *flag.String("o", "dist", "The directory to write files to")
+		root = *flag.String("root", "", "The root directory of entry files")
+		_    = *flag.String("vendor", "vendor", "The vendor directory of external files")
 	)
 
 	cmd.Usage("[flags] [entry files]")
@@ -61,7 +63,7 @@ func Build(cmd *cli.Command) {
 			cmd.Fatal(err)
 		}
 
-		if err = write(graph, out, vendor); err != nil {
+		if err = write(graph, out); err != nil {
 			cmd.Fatal(err)
 		}
 	})
@@ -132,6 +134,14 @@ func read(urls []*url.URL, root string) (*asset.Graph, error) {
 			return nil, err
 		}
 
+		graph.Add(resolved)
+
+		err = collect(resolved, url, root, graph)
+
+		if err != nil {
+			return nil, err
+		}
+
 		entries[i] = resolved
 	}
 
@@ -155,6 +165,9 @@ func parse(url *url.URL, data []byte, mediaType string, flags asset.Flags) (asse
 
 	case importmap.MediaType:
 		return importmap.From(url, data)
+
+	case webmanifest.MediaType:
+		return webmanifest.From(url, data, flags)
 
 	default:
 		return blob.From(url, data), nil
@@ -183,22 +196,36 @@ func resolve(
 		return nil, err
 	}
 
-	graph.Add(resolved)
+	return resolved, nil
+}
 
-	for _, reference := range resolved.References() {
-		url := reference.URL()
+func collect(
+	asset asset.Asset,
+	url *url.URL,
+	root string,
+	graph *asset.Graph,
+) error {
+	for _, reference := range asset.References() {
+		url := asset.URL().ResolveReference(reference.URL())
 		flags := reference.Flags()
 
 		referenced, err := resolve(url, root, graph, flags)
 
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		graph.Relation(resolved, referenced, reference)
+		graph.Add(referenced)
+		graph.Relate(asset, referenced, reference)
+
+		err = collect(referenced, url, root, graph)
+
+		if err != nil {
+			return err
+		}
 	}
 
-	for _, embed := range resolved.Embeds() {
+	for _, embed := range asset.Embeds() {
 		data := embed.Data()
 		mediaType := embed.MediaType()
 		flags := embed.Flags()
@@ -206,15 +233,20 @@ func resolve(
 		embedded, err := parse(url, data, mediaType, flags)
 
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		if graph.Add(embedded) {
-			graph.Relation(resolved, embedded, embed)
+		graph.Add(embedded)
+		graph.Relate(asset, embedded, embed)
+
+		err = collect(embedded, url, root, graph)
+
+		if err != nil {
+			return err
 		}
 	}
 
-	return resolved, nil
+	return nil
 }
 
 func compress(graph *asset.Graph, entries []asset.Asset) error {
@@ -240,32 +272,26 @@ func compress(graph *asset.Graph, entries []asset.Asset) error {
 func merge(
 	graph *asset.Graph,
 	partitions map[asset.Asset]string,
-	asset asset.Asset,
+	target asset.Asset,
 	visited map[asset.Asset]bool,
 ) error {
-	if visited[asset] {
+	if visited[target] {
 		return nil
 	}
 
-	visited[asset] = true
+	visited[target] = true
 
-	assets, relations, _ := graph.Outgoing(asset)
+	edges, _ := graph.Outgoing(target)
 
-	for i, related := range assets {
-		if visited[related] {
-			continue
-		}
-
+	for _, related := range edges {
 		err := merge(graph, partitions, related, visited)
 
 		if err != nil {
 			return err
 		}
 
-		if partitions[asset] == partitions[related] {
-			if asset.Merge(related, relations[i]) {
-				graph.Merge(asset, related)
-			}
+		if partitions[target] == partitions[related] {
+			graph.Merge(target, related)
 		}
 	}
 
@@ -324,9 +350,9 @@ func mark(
 		return err
 	}
 
-	assets, _, _ := graph.Outgoing(asset)
+	edges, _ := graph.Outgoing(asset)
 
-	for _, related := range assets {
+	for _, related := range edges {
 		err := mark(graph, hashes, related, data, visited)
 
 		if err != nil {
@@ -367,17 +393,17 @@ func fetch(url *url.URL, root string, flags asset.Flags) (mediaType string, data
 	return mediaType, data, err
 }
 
-func write(graph *asset.Graph, out, vendor string) error {
+func write(graph *asset.Graph, out string) error {
 	for _, asset := range graph.Assets() {
 		var target string
 
 		url := asset.URL()
 
 		if url.IsAbs() {
-			target = filename(url, filepath.Join(out, vendor))
-		} else {
-			target = filename(url, out)
+			continue
 		}
+
+		target = filename(url, out)
 
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return err

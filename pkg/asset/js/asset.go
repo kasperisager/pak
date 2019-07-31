@@ -68,6 +68,9 @@ func (r *Reference) URL() *url.URL {
 	return r.url
 }
 
+func (r *Reference) Rewrite(to *url.URL) {
+}
+
 func (r *Reference) Flags() asset.Flags {
 	return nil
 }
@@ -80,11 +83,11 @@ func collectReferences(
 	for _, statement := range program.Body {
 		switch statement := statement.(type) {
 		case *ast.ImportDeclaration:
-			url, err := url.Parse(statement.Source.Value)
+			url, err := base.Parse(statement.Source.Value)
 
 			if err == nil {
 				references = append(references, &Reference{
-					url:         base.ResolveReference(url),
+					url:         url,
 					Declaration: statement,
 				})
 			}

@@ -29,14 +29,14 @@ type (
 func (e *Element) VisitNode(v NodeVisitor) { v.Element(e) }
 func (t *Text) VisitNode(v NodeVisitor)    { v.Text(t) }
 
-func (e *Element) Attribute(name string) (string, bool) {
+func (e *Element) Attribute(name string) *Attribute {
 	for _, attribute := range e.Attributes {
 		if name == attribute.Name {
-			return attribute.Value, true
+			return attribute
 		}
 	}
 
-	return "", false
+	return nil
 }
 
 func (e *Element) Text() string {

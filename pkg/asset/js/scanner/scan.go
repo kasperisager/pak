@@ -4,7 +4,7 @@ import (
 	"unicode"
 
 	"github.com/kasperisager/pak/pkg/asset/js/token"
-	. "github.com/kasperisager/pak/pkg/runes"
+	"github.com/kasperisager/pak/pkg/runes"
 )
 
 type SyntaxError struct {
@@ -33,7 +33,7 @@ func TemplateTail(allowed bool) func(*Options) {
 	}
 }
 
-func Scan(offset int, runes []rune, options ...func(*Options)) (int, []rune, token.Token) {
+func Scan(offset int, runes []rune, options ...func(*Options)) (int, []rune, token.Token, error) {
 	_options := Options{
 		regExp:       true,
 		templateTail: false,
@@ -43,251 +43,356 @@ func Scan(offset int, runes []rune, options ...func(*Options)) (int, []rune, tok
 		option(&_options)
 	}
 
-	return scanToken(offset, runes, _options)
+	scanner, token, err := scanToken(scanner{offset, runes}, _options)
+
+	return scanner.offset, scanner.runes, token, err
 }
 
-func ScanInto(offset int, runes []rune, tokens []token.Token, options ...func(*Options)) (int, []rune, []token.Token, bool) {
-	offset, runes, token := Scan(offset, runes, options...)
+type (
+	scanner struct {
+		offset int
+		runes  []rune
+	}
+)
 
-	if token == nil {
-		return offset, runes, tokens, false
+const eof = -1
+
+func (s scanner) peek(n int) (scanner, rune) {
+	if len(s.runes) >= n {
+		return s, s.runes[n-1]
 	}
 
-	return offset, runes, append(tokens, token), true
+	return s, eof
 }
 
-func scanToken(offset int, runes Runes, options Options) (int, Runes, token.Token) {
-	start := offset
+func (s scanner) advance(n int) scanner {
+	if len(s.runes) >= n {
+		s.runes = s.runes[n:]
+	}
 
-	if offset, runes, value, ok := scanIdentifierName(offset, runes); ok {
-		if isKeyword(value) || value == "enum" {
-			return offset, runes, token.Keyword{Offset: start, Value: value}
+	return s
+}
+
+func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
+	for {
+		var ok bool
+
+		scanner, ok = scanWhitespace(scanner)
+
+		if !ok {
+			break
+		}
+	}
+
+	start := scanner.offset
+
+	scanner, next := scanner.peek(1)
+
+	switch next {
+	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '.', '=':
+		scanner, value, err := scanPunctuator(scanner, options)
+
+		if err != nil {
+			return scanner, nil, err
 		}
 
-		switch value {
-		case "true":
-			return offset, runes, token.Boolean{Offset: start, Value: true}
+		return scanner, token.Punctuator{Offset: start, Value: value}, nil
 
-		case "false":
-			return offset, runes, token.Boolean{Offset: start, Value: false}
+	case '"', '\'':
+		scanner, value, err := scanStringLiteral(scanner)
 
-		case "null":
-			return offset, runes, token.Null{Offset: start}
+		if err != nil {
+			return scanner, nil, err
 		}
 
-		return offset, runes, token.Identifier{Offset: start, Value: value}
-	}
+		return scanner, token.String{Offset: start, Value: value}, nil
 
-	if offset, runes, ok := scanWhitespace(offset, runes); ok {
-		return offset, runes, token.Whitespace{Offset: start}
-	}
+	default:
+		if scanner, value, err := scanIdentifierName(scanner); err == nil {
+			if isKeyword(value) || value == "enum" {
+				return scanner, token.Keyword{Offset: start, Value: value}, nil
+			}
 
-	if offset, runes, value, ok := scanPunctuator(offset, runes, options); ok {
-		return offset, runes, token.Punctuator{Offset: start, Value: value}
-	}
+			switch value {
+			case "true":
+				return scanner, token.Boolean{Offset: start, Value: true}, nil
 
-	if offset, runes, value, ok := scanStringLiteral(offset, runes); ok {
-		return offset, runes, token.String{Offset: start, Value: value}
-	}
+			case "false":
+				return scanner, token.Boolean{Offset: start, Value: false}, nil
 
-	return offset, runes, nil
+			case "null":
+				return scanner, token.Null{Offset: start}, nil
+			}
+
+			return scanner, token.Identifier{Offset: start, Value: value}, nil
+		}
+
+		return scanner, nil, SyntaxError{
+			Offset:  start,
+			Message: "unexpected character",
+		}
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-UnicodeEscapeSequence
-func scanUnicodeEscapeSequence(offset int, runes Runes) (int, Runes, rune, bool) {
-	if runes.Peek(1) == 'u' {
-		if runes.Peek(2) == '{' {
-			offset, runes, rune, ok := scanCodePoint(offset+2, runes[2:])
+func scanUnicodeEscapeSequence(scanner scanner) (scanner, rune, error) {
+	var next rune
 
-			if ok && runes.Peek(1) == '}' {
-				return offset, runes, rune, true
+	if scanner, next = scanner.peek(1); next == 'u' {
+		if scanner, next = scanner.peek(2); next == '{' {
+			scanner, codePoint, err := scanCodePoint(scanner.advance(2))
+
+			if err != nil {
+				return scanner, -1, err
 			}
+
+			scanner, next := scanner.peek(1)
+
+			if next != '}' {
+				return scanner, -1, SyntaxError{
+					Offset:  scanner.offset,
+					Message: `unexpected character, expected "}"`,
+				}
+			}
+
+			return scanner, codePoint, nil
 		} else {
 			for i := 0; i < 4; i++ {
 			}
 		}
 	}
 
-	return offset, runes, -1, false
+	return scanner, -1, SyntaxError{
+		Offset:  scanner.offset,
+		Message: "unexpected character, expected escape sequence",
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-CodePoint
-func scanCodePoint(offset int, runes Runes) (int, Runes, rune, bool) {
-	var code int
+func scanCodePoint(scanner scanner) (scanner, rune, error) {
+	var codePoint int
 
-	for i := 0; i < len(runes); i++ {
-		next := runes.Peek(i + 1)
+	for {
+		var next rune
 
-		if IsHexDigit(next) {
-			code = 0x10*code + HexValue(next)
-		} else if code > 0x10ffff {
+		scanner, next = scanner.peek(1)
+
+		if runes.IsHexDigit(next) {
+			codePoint = 0x10*codePoint + runes.HexValue(next)
+		} else if codePoint <= 0x10ffff {
 			break
 		} else {
-			return offset + i, runes[i:], rune(code), true
+			return scanner, -1, SyntaxError{
+				Offset:  scanner.offset,
+				Message: "unexpected code point larger than 0x10ffff",
+			}
 		}
 	}
 
-	return offset, runes, -1, false
+	return scanner, rune(codePoint), nil
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-IdentifierName
-func scanIdentifierName(offset int, runes Runes) (int, Runes, string, bool) {
+func scanIdentifierName(scanner scanner) (scanner, string, error) {
 	var result []rune
 
-	offset, runes, rune, ok := scanIdentifierStart(offset, runes)
+	scanner, rune, err := scanIdentifierStart(scanner)
 
-	if ok {
+	if err != nil {
+		return scanner, "", err
+	}
+
+	result = append(result, rune)
+
+	for {
+		scanner, rune, err = scanIdentifierStart(scanner)
+
+		if err != nil {
+			break
+		}
+
 		result = append(result, rune)
-	} else {
-		return offset, runes, "", false
 	}
 
 	for {
-		offset, runes, rune, ok = scanIdentifierStart(offset, runes)
+		scanner, rune, err = scanIdentifierPart(scanner)
 
-		if ok {
-			result = append(result, rune)
-		} else {
+		if err != nil {
 			break
 		}
+
+		result = append(result, rune)
 	}
 
-	for {
-		offset, runes, rune, ok = scanIdentifierPart(offset, runes)
-
-		if ok {
-			result = append(result, rune)
-		} else {
-			break
-		}
-	}
-
-	return offset, runes, string(result), true
+	return scanner, string(result), nil
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-IdentifierStart
-func scanIdentifierStart(offset int, runes Runes) (int, Runes, rune, bool) {
-	next := runes.Peek(1)
+func scanIdentifierStart(scanner scanner) (scanner, rune, error) {
+	scanner, next := scanner.peek(1)
 
 	if isUnicodeIdentifierStart(next) || next == '$' || next == '_' {
-		return offset + 1, runes[1:], next, true
+		return scanner.advance(1), next, nil
 	}
 
 	if next == '\\' {
-		offset, runes, code, ok := scanUnicodeEscapeSequence(offset+1, runes[1:])
+		scanner, escape, err := scanUnicodeEscapeSequence(scanner.advance(1))
 
-		if ok {
-			return offset, runes, code, true
+		if err != nil {
+			return scanner, -1, err
 		}
+
+		return scanner, escape, nil
 	}
 
-	return offset, runes, -1, false
+	return scanner, -1, SyntaxError{
+		Offset:  scanner.offset,
+		Message: "unexpected character, expected start of identifier",
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-IdentifierPart
-func scanIdentifierPart(offset int, runes Runes) (int, Runes, rune, bool) {
-	next := runes.Peek(1)
+func scanIdentifierPart(scanner scanner) (scanner, rune, error) {
+	scanner, next := scanner.peek(1)
 
 	if isUnicodeIdentifierContinue(next) || next == '$' || next == 0x200c || next == 0x200d {
-		return offset + 1, runes[1:], next, true
+		return scanner.advance(1), next, nil
 	}
 
 	if next == '\\' {
-		offset, runes, code, ok := scanUnicodeEscapeSequence(offset+1, runes[1:])
+		scanner, code, err := scanUnicodeEscapeSequence(scanner.advance(1))
 
-		if ok {
-			return offset, runes, code, true
+		if err != nil {
+			return scanner, -1, err
 		}
+
+		return scanner, code, nil
 	}
 
-	return offset, runes, -1, false
+	return scanner, -1, SyntaxError{
+		Offset:  scanner.offset,
+		Message: "unexpected character, expected part of identifier",
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-HexDigit
-func scanHexDigit(offset int, runes Runes) (int, Runes, int, bool) {
-	next := runes.Peek(1)
+func scanHexDigit(scanner scanner) (scanner, int, bool) {
+	scanner, next := scanner.peek(1)
 
-	if IsHexDigit(next) {
-		return offset + 1, runes[1:], HexValue(next), true
+	if runes.IsHexDigit(next) {
+		return scanner.advance(1), runes.HexValue(next), true
 	}
 
-	return offset, runes, -1, false
+	return scanner, -1, false
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-WhiteSpace
-func scanWhitespace(offset int, runes Runes) (int, Runes, bool) {
-	next := runes.Peek(1)
+func scanWhitespace(scanner scanner) (scanner, bool) {
+	scanner, next := scanner.peek(1)
 
 	switch next {
 	case ' ', '\t', 0xb, 0xc, 0xa0, 0xfeff:
-		return offset + 1, runes[1:], true
+		return scanner.advance(1), true
 	}
 
 	if unicode.In(next, unicode.Zs) {
-		return offset + 1, runes[1:], true
+		return scanner.advance(1), true
 	}
 
-	return offset, runes, false
+	return scanner, false
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-Punctuator
-func scanPunctuator(offset int, runes Runes, options Options) (int, Runes, string, bool) {
-	next := runes.Peek(1)
+func scanPunctuator(scanner scanner, options Options) (scanner, string, error) {
+	scanner, next := scanner.peek(1)
 
 	switch next {
 	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':':
-		return offset + 1, runes[1:], string(next), true
+		return scanner.advance(1), string(next), nil
 
 	case '.':
-		if runes.Peek(2) == '.' && runes.Peek(3) == '.' {
-			return offset + 3, runes[3:], "...", true
+		scanner, next = scanner.peek(2)
+
+		if next == '.' {
+			scanner, next = scanner.peek(3)
+
+			if next == '.' {
+				return scanner.advance(3), "...", nil
+			}
 		}
 
-		return offset + 1, runes[1:], ".", true
+		return scanner.advance(1), ".", nil
 
 	case '}':
 		if !options.templateTail {
-			return offset + 1, runes[1:], "}", true
+			return scanner.advance(1), "}", nil
 		}
 
 	case '/':
 		if !options.regExp {
-			if runes.Peek(2) == '=' {
-				return offset + 2, runes[2:], "/=", true
+			scanner, next = scanner.peek(2)
+
+			if next == '=' {
+				return scanner.advance(2), "/=", nil
 			}
 
-			return offset + 1, runes[1:], "/", true
+			return scanner.advance(1), "/", nil
 		}
+
+	case '=':
+		return scanner.advance(1), "=", nil
 	}
 
-	return offset, runes, "", false
+	return scanner, "", SyntaxError{
+		Offset:  scanner.offset,
+		Message: "unexpected character, expected punctuator",
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-StringLiteral
-func scanStringLiteral(offset int, runes Runes) (int, Runes, string, bool) {
+func scanStringLiteral(scanner scanner) (scanner, string, error) {
 	var mark rune
 
-	switch next := runes.Peek(1); next {
+	scanner, next := scanner.peek(1)
+
+	switch next {
 	case '"', '\'':
 		mark = next
+		scanner = scanner.advance(1)
 
 	default:
-		return offset, runes, "", false
-	}
-
-	for i := 1; i < len(runes); i++ {
-		switch next := runes.Peek(i + 1); next {
-		case mark:
-			return offset + i + 1, runes[i+1:], string(runes[1:i]), true
-
-		case '\n', '\r':
-			break
-
-		case '\\':
+		return scanner, "", SyntaxError{
+			Offset:  scanner.offset,
+			Message: `unexpected character, expected start of string`,
 		}
 	}
 
-	return offset, runes, "", false
+	var value []rune
+
+	for {
+		scanner, next = scanner.peek(1)
+
+		switch next {
+		default:
+			value = append(value, next)
+			scanner = scanner.advance(1)
+
+		case mark:
+			return scanner.advance(1), string(value), nil
+
+		case '\n', '\r':
+			return scanner, "", SyntaxError{
+				Offset:  scanner.offset,
+				Message: "unexpected newline in string literal",
+			}
+
+		case eof:
+			return scanner, "", SyntaxError{
+				Offset:  scanner.offset,
+				Message: "unexpected unterminated string literal",
+			}
+		}
+	}
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-LineTerminator

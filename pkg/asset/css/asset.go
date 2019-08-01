@@ -3,13 +3,14 @@ package css
 import (
 	"bytes"
 	"fmt"
+	"net/url"
+
 	"github.com/kasperisager/pak/pkg/asset"
 	"github.com/kasperisager/pak/pkg/asset/css/ast"
 	"github.com/kasperisager/pak/pkg/asset/css/parser"
 	"github.com/kasperisager/pak/pkg/asset/css/scanner"
 	"github.com/kasperisager/pak/pkg/asset/css/token"
 	"github.com/kasperisager/pak/pkg/asset/css/writer"
-	"net/url"
 )
 
 type (
@@ -21,6 +22,7 @@ type (
 	Reference struct {
 		url  *url.URL
 		Rule ast.Rule
+		Conditional bool
 	}
 )
 
@@ -77,7 +79,9 @@ func (a *Asset) Merge(b asset.Asset, r asset.Relation) bool {
 	case *Asset:
 		switch r := r.(type) {
 		case *Reference:
-			return mergeRule(r.Rule, b, a)
+			if !r.Conditional {
+				return mergeRule(r.Rule, b, a)
+			}
 		}
 	}
 
@@ -113,13 +117,13 @@ func collectReferences(
 	for _, rule := range styleSheet.Rules {
 		switch rule := rule.(type) {
 		case *ast.ImportRule:
-			references = append(
-				references,
-				&Reference{
-					url:  rule.URL,
-					Rule: rule,
-				},
-			)
+			conditional := len(rule.Conditions) > 0
+
+			references = append(references, &Reference{
+				url:  rule.URL,
+				Rule: rule,
+				Conditional: conditional,
+			})
 
 		case *ast.MediaRule:
 			collectReferences(base, rule.StyleSheet, references)

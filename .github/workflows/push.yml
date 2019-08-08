@@ -1,0 +1,17 @@
+on: push
+name: Integrate
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: build
+      uses: docker://golang
+      with:
+        entrypoint: go
+        args: build ./...
+    - name: test
+      uses: docker://golang
+      with:
+        entrypoint: go
+        args: test ./...

@@ -3,6 +3,7 @@ name: Integrate
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: Build
     steps:
     - uses: actions/checkout@master
     - uses: actions/setup-go@v1
@@ -12,6 +13,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    name: Test
     steps:
     - uses: actions/checkout@master
     - uses: actions/setup-go@v1

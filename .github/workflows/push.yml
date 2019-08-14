@@ -6,6 +6,8 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - uses: actions/setup-go@v1
+      with:
+        go-version: 1.12.8
     - run: go build ./...
 
   test:
@@ -13,4 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - uses: actions/setup-go@v1
+      with:
+        go-version: 1.12.8
     - run: go test ./...

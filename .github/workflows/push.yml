@@ -5,15 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
+    - uses: actions/setup-go@v1
+    - run: go build ./...
 
-    - name: Build
-      uses: docker://golang
-      with:
-        entrypoint: go
-        args: build ./...
-
-    - name: Test
-      uses: docker://golang
-      with:
-        entrypoint: go
-        args: test ./...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions/setup-go@v1
+    - run: go test ./...

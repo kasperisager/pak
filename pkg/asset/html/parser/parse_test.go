@@ -261,8 +261,7 @@ func TestParse(t *testing.T) {
 		{
 			`
 			<!doctype html>
-			<body>
-			`,
+			<body>`,
 			&ast.Document{
 				Root: &ast.Element{
 					Name: "html",

@@ -15,7 +15,17 @@ func TestParse(t *testing.T) {
 	}{
 		{
 			`foo = "foo"`,
-			&ast.Program{},
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.AssignmentExpression{
+							Operator: "=",
+							Left: &ast.Identifier{Name: "foo"},
+							Right: &ast.StringLiteral{Value: "foo"},
+						},
+					},
+				},
+			},
 		},
 	}
 

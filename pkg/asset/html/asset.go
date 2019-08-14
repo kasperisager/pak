@@ -14,7 +14,7 @@ import (
 type (
 	Asset struct {
 		url      *url.URL
-		Document *ast.Element
+		Document *ast.Document
 	}
 
 	Reference struct {
@@ -64,11 +64,11 @@ func (a *Asset) URL() *url.URL {
 }
 
 func (a *Asset) References() []asset.Reference {
-	return collectReferences(a.url, a.Document, nil)
+	return collectReferences(a.url, a.Document.Root, nil)
 }
 
 func (a *Asset) Embeds() []asset.Embed {
-	return collectEmbeds(a.url, a.Document, nil)
+	return collectEmbeds(a.url, a.Document.Root, nil)
 }
 
 func (a *Asset) Data() []byte {

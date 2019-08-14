@@ -14,7 +14,7 @@ func (err SyntaxError) Error() string {
 	return err.Message
 }
 
-func Parse(tokens []token.Token) (*ast.Element, error) {
+func Parse(tokens []token.Token) (*ast.Document, error) {
 	offset, tokens, document, err := parseDocument(0, tokens)
 
 	if err != nil {
@@ -33,7 +33,7 @@ func Parse(tokens []token.Token) (*ast.Element, error) {
 	return document, nil
 }
 
-func parseDocument(offset int, tokens []token.Token) (int, []token.Token, *ast.Element, error) {
+func parseDocument(offset int, tokens []token.Token) (int, []token.Token, *ast.Document, error) {
 	offset, tokens = skipWhitespace(offset, tokens)
 
 	switch peek(tokens, 1).(type) {
@@ -53,7 +53,7 @@ func parseDocument(offset int, tokens []token.Token) (int, []token.Token, *ast.E
 		return offset, tokens, nil, err
 	}
 
-	return offset, tokens, documentElement, nil
+	return offset, tokens, &ast.Document{documentElement}, nil
 }
 
 func parseDocumentElement(offset int, tokens []token.Token) (int, []token.Token, *ast.Element, error) {

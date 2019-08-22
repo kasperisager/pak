@@ -233,6 +233,8 @@ func parseExpression(parser parser, parameters parameters) (parser, ast.Expressi
 
 				if ok {
 					sequenceExpression.Expression = append(sequenceExpression.Expression, right)
+				} else {
+					break
 				}
 			} else {
 				break
@@ -259,7 +261,7 @@ func parseAssignmentExpression(parser parser, parameters parameters) (parser, as
 		switch next := next.(type) {
 		case token.Punctuator:
 			switch next.Value {
-			case "=", "/=":
+			case "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", ">>>=", "&=", "^=", "|=", "**=":
 				left, ok := left.(ast.Pattern)
 
 				if !ok {
@@ -453,18 +455,15 @@ func parseIdentifierReference(parser parser, parameters parameters) (parser, *as
 	case token.Identifier:
 		switch next.Value {
 		case "yield":
-			if parameters.Yield {
-				break
+			if !parameters.Yield {
+				return parser.advance(1), &ast.Identifier{Name: "yield"}, true, nil
 			}
 
-			return parser.advance(1), &ast.Identifier{Name: "yield"}, true, nil
 
 		case "await":
-			if parameters.Await {
-				break
+			if !parameters.Await {
+				return parser.advance(1), &ast.Identifier{Name: "await"}, true, nil
 			}
-
-			return parser.advance(1), &ast.Identifier{Name: "await"}, true, nil
 
 		default:
 			return parser.advance(1), &ast.Identifier{Name: next.Value}, true, nil

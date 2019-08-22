@@ -89,7 +89,7 @@ func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
 	scanner, next := scanner.peek(1)
 
 	switch next {
-	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '.', '=':
+	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '.', '=', '*', '^':
 		scanner, value, err := scanPunctuator(scanner, options)
 
 		if err != nil {
@@ -331,16 +331,166 @@ func scanPunctuator(scanner scanner, options Options) (scanner, string, error) {
 	case '/':
 		if !options.regExp {
 			scanner, next = scanner.peek(2)
-
-			if next == '=' {
+			switch next {
+			default:
+				return scanner.advance(1), "/", nil
+			case '=':
 				return scanner.advance(2), "/=", nil
 			}
+		}
 
-			return scanner.advance(1), "/", nil
+	case '^':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "^", nil
+		case '=':
+			return scanner.advance(2), "^=", nil
+		}
+
+	case '%':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "%", nil
+		case '=':
+			return scanner.advance(2), "%=", nil
+		}
+
+	case '+':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "+", nil
+		case '+':
+			return scanner.advance(2), "++", nil
+		case '=':
+			return scanner.advance(2), "+=", nil
+		}
+
+	case '-':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "-", nil
+		case '-':
+			return scanner.advance(2), "--", nil
+		case '=':
+			return scanner.advance(2), "-=", nil
+		}
+
+	case '|':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "|", nil
+		case '=':
+			return scanner.advance(2), "|=", nil
+		case '|':
+			return scanner.advance(2), "||", nil
+		}
+
+	case '&':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "&", nil
+		case '=':
+			return scanner.advance(2), "&=", nil
+		case '&':
+			return scanner.advance(2), "&&", nil
+		}
+
+	case '*':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "*", nil
+		case '=':
+			return scanner.advance(2), "*=", nil
+		case '*':
+			scanner, next = scanner.peek(3)
+
+			switch next {
+			default:
+				return scanner.advance(2), "**", nil
+			case '=':
+				return scanner.advance(3), "**=", nil
+			}
 		}
 
 	case '=':
-		return scanner.advance(1), "=", nil
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "=", nil
+		case '>':
+			return scanner.advance(2), "=>", nil
+		case '=':
+			scanner, next = scanner.peek(3)
+
+			switch next {
+			default:
+				return scanner.advance(2), "==", nil
+			case '=':
+				return scanner.advance(3), "===", nil
+			}
+		}
+
+	case '<':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "<", nil
+		case '=':
+			return scanner.advance(2), "<=", nil
+		case '<':
+			scanner, next = scanner.peek(3)
+
+			switch next {
+			default:
+				return scanner.advance(2), "<<", nil
+			case '=':
+				return scanner.advance(3), "<<=", nil
+			}
+		}
+
+	case '>':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), ">", nil
+		case '=':
+			return scanner.advance(2), ">=", nil
+		case '>':
+			scanner, next = scanner.peek(3)
+
+			switch next {
+			default:
+				return scanner.advance(2), ">>", nil
+			case '=':
+				return scanner.advance(3), ">>=", nil
+			case '>':
+				scanner, next = scanner.peek(4)
+
+				switch next {
+				default:
+					return scanner.advance(3), ">>>", nil
+				case '=':
+					return scanner.advance(4), ">>>=", nil
+				}
+			}
+		}
 	}
 
 	return scanner, "", SyntaxError{

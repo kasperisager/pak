@@ -206,15 +206,15 @@ func collectReferences(
 		switch typ.Value {
 		case "importmap":
 			references = append(references, &Reference{
-				url:   url,
-				flags: flags.Set("mediaType", "application/importmap+json"),
+				url:       url,
+				flags:     flags.Set("mediaType", "application/importmap+json"),
 				Attribute: src,
 			})
 
 		default:
 			references = append(references, &Reference{
-				url:   url,
-				flags: flags.Set("module", typ.Value == "module"),
+				url:       url,
+				flags:     flags.Set("module", typ.Value == "module"),
 				Attribute: src,
 			})
 		}

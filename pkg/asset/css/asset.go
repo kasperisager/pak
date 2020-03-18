@@ -20,8 +20,8 @@ type (
 	}
 
 	Reference struct {
-		url  *url.URL
-		Rule ast.Rule
+		url         *url.URL
+		Rule        ast.Rule
 		Conditional bool
 	}
 )
@@ -120,8 +120,8 @@ func collectReferences(
 			conditional := len(rule.Conditions) > 0
 
 			references = append(references, &Reference{
-				url:  rule.URL,
-				Rule: rule,
+				url:         rule.URL,
+				Rule:        rule,
 				Conditional: conditional,
 			})
 

@@ -87,7 +87,7 @@ type (
 	}
 
 	PatternVisitor struct {
-		Identifier func(*Identifier)
+		Identifier       func(*Identifier)
 		MemberExpression func(*MemberExpression)
 	}
 
@@ -610,14 +610,15 @@ func (p *ImportDeclaration) VisitProgramBody(v ProgramBodyVisitor)   { v.ModuleD
 func (s *ExpressionStatement) VisitStatement(v StatementVisitor) { v.ExpressionStatement(s) }
 func (s *BlockStatement) VisitStatement(v StatementVisitor)      { v.BlockStatement(s) }
 
-func (e *Identifier) VisitExpression(v ExpressionVisitor)         { v.Identifier(e) }
-func (e *StringLiteral) VisitExpression(v ExpressionVisitor)      { v.Literal(e) }
-func (e *BooleanLiteral) VisitExpression(v ExpressionVisitor)     { v.Literal(e) }
-func (e *NullLiteral) VisitExpression(v ExpressionVisitor)        { v.Literal(e) }
-func (e *NumberLiteral) VisitExpression(v ExpressionVisitor)      { v.Literal(e) }
-func (e *RegExpLiteral) VisitExpression(v ExpressionVisitor)      { v.Literal(e) }
-func (e *SequenceExpression) VisitExpression(v ExpressionVisitor) { v.SequenceExpression(e) }
-func (e *AssignmentExpression) VisitExpression(v ExpressionVisitor) { v.AssignmentExpression(e) }
+func (e *Identifier) VisitExpression(v ExpressionVisitor)            { v.Identifier(e) }
+func (e *StringLiteral) VisitExpression(v ExpressionVisitor)         { v.Literal(e) }
+func (e *BooleanLiteral) VisitExpression(v ExpressionVisitor)        { v.Literal(e) }
+func (e *NullLiteral) VisitExpression(v ExpressionVisitor)           { v.Literal(e) }
+func (e *NumberLiteral) VisitExpression(v ExpressionVisitor)         { v.Literal(e) }
+func (e *RegExpLiteral) VisitExpression(v ExpressionVisitor)         { v.Literal(e) }
+func (e *SequenceExpression) VisitExpression(v ExpressionVisitor)    { v.SequenceExpression(e) }
+func (e *AssignmentExpression) VisitExpression(v ExpressionVisitor)  { v.AssignmentExpression(e) }
+func (e *ConditionalExpression) VisitExpression(v ExpressionVisitor) { v.ConditionalExpression(e) }
 
 func (l *StringLiteral) VisitLiteral(v LiteralVisitor)  { v.StringLiteral(l) }
 func (l *BooleanLiteral) VisitLiteral(v LiteralVisitor) { v.BooleanLiteral(l) }
@@ -637,5 +638,5 @@ func (i *ImportNamespaceSpecifier) VisitImportDeclarationSpecifier(v ImportDecla
 	v.ImportNamespaceSpecifier(i)
 }
 
-func (p *Identifier) VisitPattern(v PatternVisitor)  { v.Identifier(p) }
-func (p *MemberExpression) VisitPattern(v PatternVisitor)  { v.MemberExpression(p) }
+func (p *Identifier) VisitPattern(v PatternVisitor)       { v.Identifier(p) }
+func (p *MemberExpression) VisitPattern(v PatternVisitor) { v.MemberExpression(p) }

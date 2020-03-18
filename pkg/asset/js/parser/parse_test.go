@@ -10,7 +10,7 @@ import (
 
 func TestParse(t *testing.T) {
 	var tests = []struct {
-		input string
+		input   string
 		program *ast.Program
 	}{
 		{
@@ -20,8 +20,8 @@ func TestParse(t *testing.T) {
 					&ast.ExpressionStatement{
 						Expression: &ast.AssignmentExpression{
 							Operator: "=",
-							Left: &ast.Identifier{Name: "foo"},
-							Right: &ast.StringLiteral{Value: "bar"},
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.StringLiteral{Value: "bar"},
 						},
 					},
 				},
@@ -49,8 +49,22 @@ func TestParse(t *testing.T) {
 					&ast.ExpressionStatement{
 						Expression: &ast.AssignmentExpression{
 							Operator: "*=",
-							Left: &ast.Identifier{Name: "foo"},
-							Right: &ast.StringLiteral{Value: "bar"},
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.StringLiteral{Value: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo ? bar : baz`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.ConditionalExpression{
+							Test:       &ast.Identifier{Name: "foo"},
+							Alternate:  &ast.Identifier{Name: "bar"},
+							Consequent: &ast.Identifier{Name: "baz"},
 						},
 					},
 				},
@@ -65,4 +79,3 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, test.program, program, test.input)
 	}
 }
-

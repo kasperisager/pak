@@ -284,20 +284,21 @@ func parseAssignmentExpression(parser parser, parameters parameters) (parser, as
 					return parser, nil, false, err
 				}
 
-				if ok {
-					assignmentExpression := &ast.AssignmentExpression{
-						Operator: next.Value,
-						Left:     left,
-						Right:    right,
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "unexpected assignment",
 					}
-
-					return parser, assignmentExpression, true, nil
 				}
 
-				return parser, nil, false, SyntaxError{
-					Offset:  parser.offset,
-					Message: "unexpected assignment",
+				assignmentExpression := &ast.AssignmentExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
 				}
+
+				return parser, assignmentExpression, true, nil
+
 			}
 		}
 
@@ -322,11 +323,43 @@ func parseConditionalExpression(parser parser, parameters parameters) (parser, a
 	if ok {
 		parser, next := parser.peek(1)
 
-		switch next := next.(type) {
-		case token.Punctuator:
-			switch next.Value {
-			case "?":
-				parser, alternate, ok, err := parseAssignmentExpression(parser, parameters)
+		if next, ok := next.(token.Punctuator); ok && next.Value == "?" {
+			parser, alternate, ok, err := parseAssignmentExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected assignment expression",
+				}
+			}
+
+			parser, next := parser.peek(1)
+
+			if next, ok := next.(token.Punctuator); ok && next.Value == ":" {
+				parser, consequent, ok, err := parseAssignmentExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected assignment expression",
+					}
+				}
+
+				conditionalExpression := &ast.ConditionalExpression{
+					Test:       test,
+					Alternate:  alternate,
+					Consequent: consequent,
+				}
+
+				return parser, conditionalExpression, true, nil
 			}
 		}
 	}
@@ -475,7 +508,6 @@ func parseIdentifierReference(parser parser, parameters parameters) (parser, *as
 			if !parameters.Yield {
 				return parser.advance(1), &ast.Identifier{Name: "yield"}, true, nil
 			}
-
 
 		case "await":
 			if !parameters.Await {

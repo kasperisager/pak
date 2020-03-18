@@ -313,8 +313,25 @@ func parseAssignmentExpression(parser parser, parameters parameters) (parser, as
 
 // https://www.ecma-international.org/ecma-262/#prod-ConditionalExpression
 func parseConditionalExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
-	parser, left, ok, err := parseLogicalOrExpression(parser, parameters)
-	return parser, left, ok, err
+	parser, test, ok, err := parseLogicalOrExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		switch next := next.(type) {
+		case token.Punctuator:
+			switch next.Value {
+			case "?":
+				parser, alternate, ok, err := parseAssignmentExpression(parser, parameters)
+			}
+		}
+	}
+
+	return parser, test, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-LogicalORExpression

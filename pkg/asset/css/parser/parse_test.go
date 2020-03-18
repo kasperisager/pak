@@ -80,7 +80,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.StyleRule{
 						Selectors: []ast.Selector{
-							&ast.RelativeSelector{
+							&ast.ComplexSelector{
 								Combinator: '>',
 								Left: &ast.CompoundSelector{
 									Left:  &ast.IdSelector{Name: "foo"},
@@ -99,7 +99,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.StyleRule{
 						Selectors: []ast.Selector{
-							&ast.RelativeSelector{
+							&ast.ComplexSelector{
 								Combinator: ' ',
 								Left: &ast.CompoundSelector{
 									Left:  &ast.IdSelector{Name: "foo"},
@@ -118,7 +118,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.StyleRule{
 						Selectors: []ast.Selector{
-							&ast.RelativeSelector{
+							&ast.ComplexSelector{
 								Combinator: ' ',
 								Left:       &ast.TypeSelector{Name: "foo"},
 								Right:      &ast.TypeSelector{Name: "bar"},

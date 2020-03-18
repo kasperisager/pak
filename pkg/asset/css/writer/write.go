@@ -123,7 +123,7 @@ func writeSelector(w io.Writer, selector ast.Selector) {
 		writeSelector(w, selector.Left)
 		writeSelector(w, selector.Right)
 
-	case *ast.RelativeSelector:
+	case *ast.ComplexSelector:
 		writeSelector(w, selector.Left)
 		fmt.Fprintf(w, "%c", selector.Combinator)
 		writeSelector(w, selector.Right)

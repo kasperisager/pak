@@ -77,7 +77,7 @@ type (
 		TypeSelector      func(*TypeSelector)
 		PseudoSelector    func(*PseudoSelector)
 		CompoundSelector  func(*CompoundSelector)
-		RelativeSelector  func(*RelativeSelector)
+		ComplexSelector   func(*ComplexSelector)
 	}
 
 	IdSelector struct {
@@ -112,7 +112,7 @@ type (
 		Right Selector
 	}
 
-	RelativeSelector struct {
+	ComplexSelector struct {
 		Combinator rune
 		Left       Selector
 		Right      Selector
@@ -235,7 +235,7 @@ func (s *ClassSelector) VisitSelector(v SelectorVisitor)     { v.ClassSelector(s
 func (s *AttributeSelector) VisitSelector(v SelectorVisitor) { v.AttributeSelector(s) }
 func (s *TypeSelector) VisitSelector(v SelectorVisitor)      { v.TypeSelector(s) }
 func (s *PseudoSelector) VisitSelector(v SelectorVisitor)    { v.PseudoSelector(s) }
-func (s *RelativeSelector) VisitSelector(v SelectorVisitor)  { v.RelativeSelector(s) }
+func (s *ComplexSelector) VisitSelector(v SelectorVisitor)   { v.ComplexSelector(s) }
 func (s *CompoundSelector) VisitSelector(v SelectorVisitor)  { v.CompoundSelector(s) }
 
 func (m *MediaOperation) VisitMediaCondition(v MediaConditionVisitor) { v.MediaOperation(m) }

@@ -733,7 +733,7 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 				left = combineSelectors(left, right)
 
 			case '#':
-				offset, tokens, right, err = parseIdSelector(offset+1, tokens[1:])
+				offset, tokens, right, err = parseIDSelector(offset+1, tokens[1:])
 
 				if err != nil {
 					return offset, tokens, left, err
@@ -747,7 +747,7 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 				left = combineSelectors(left, right)
 
 			case '>', '~', '+':
-				offset, tokens, left, err = parseRelativeSelector(offset, tokens, left)
+				offset, tokens, left, err = parseComplexSelector(offset, tokens, left)
 
 				if err != nil {
 					return offset, tokens, left, err
@@ -786,7 +786,7 @@ func parseSelector(offset int, tokens []token.Token) (int, []token.Token, ast.Se
 
 		case token.Whitespace:
 			if len(tokens) > 1 && startsSelector(tokens[1]) {
-				offset, tokens, left, err = parseRelativeSelector(offset, tokens, left)
+				offset, tokens, left, err = parseComplexSelector(offset, tokens, left)
 
 				if err != nil {
 					return offset, tokens, left, err
@@ -821,7 +821,7 @@ func combineSelectors(left ast.Selector, right ast.Selector) ast.Selector {
 	return &ast.CompoundSelector{Left: left, Right: right}
 }
 
-func parseIdSelector(offset int, tokens []token.Token) (int, []token.Token, *ast.IdSelector, error) {
+func parseIDSelector(offset int, tokens []token.Token) (int, []token.Token, *ast.IdSelector, error) {
 	selector := &ast.IdSelector{}
 
 	switch t := peek(tokens, 1).(type) {
@@ -1007,8 +1007,8 @@ func parsePseudoSelector(offset int, tokens []token.Token) (int, []token.Token, 
 	}
 }
 
-func parseRelativeSelector(offset int, tokens []token.Token, left ast.Selector) (int, []token.Token, *ast.RelativeSelector, error) {
-	selector := &ast.RelativeSelector{Left: left}
+func parseComplexSelector(offset int, tokens []token.Token, left ast.Selector) (int, []token.Token, *ast.ComplexSelector, error) {
+	selector := &ast.ComplexSelector{Left: left}
 
 	switch t := peek(tokens, 1).(type) {
 	case token.Whitespace:

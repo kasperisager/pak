@@ -53,7 +53,7 @@ func parseDocument(offset int, tokens []token.Token) (int, []token.Token, *ast.D
 		return offset, tokens, nil, err
 	}
 
-	return offset, tokens, &ast.Document{documentElement}, nil
+	return offset, tokens, &ast.Document{Root: documentElement}, nil
 }
 
 func parseDocumentElement(offset int, tokens []token.Token) (int, []token.Token, *ast.Element, error) {

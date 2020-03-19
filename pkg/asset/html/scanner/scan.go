@@ -166,6 +166,20 @@ attributes:
 	case '>':
 		offset, runes = offset+1, runes[1:]
 
+	case '/':
+		offset, runes = offset+1, runes[1:]
+
+		switch peek(runes, 1) {
+		case '>':
+			offset, runes = offset+1, runes[1:]
+
+		default:
+			return offset, runes, tokens, SyntaxError{
+				Offset:  offset,
+				Message: `unexpected character, expected ">"`,
+			}
+		}
+
 	default:
 		return offset, runes, tokens, SyntaxError{
 			Offset:  offset,

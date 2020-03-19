@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"math"
 	"unicode"
 
 	"github.com/kasperisager/pak/pkg/asset/js/token"
@@ -89,7 +90,20 @@ func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
 	scanner, next := scanner.peek(1)
 
 	switch next {
-	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '.', '=', '*', '^':
+	case '.':
+		if scanner, next = scanner.peek(2); runes.IsDigit(next) {
+			scanner, value, err := scanNumericLiteral(scanner)
+
+			if err != nil {
+				return scanner, nil, err
+			}
+
+			return scanner, token.Number{Offset: start, Value: value}, nil
+		}
+
+		fallthrough
+
+	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '=', '*', '^':
 		scanner, value, err := scanPunctuator(scanner, options)
 
 		if err != nil {
@@ -106,6 +120,15 @@ func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
 		}
 
 		return scanner, token.String{Offset: start, Value: value}, nil
+
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		scanner, value, err := scanNumericLiteral(scanner)
+
+		if err != nil {
+			return scanner, nil, err
+		}
+
+		return scanner, token.Number{Offset: start, Value: value}, nil
 
 	default:
 		if scanner, value, err := scanIdentifierName(scanner); err == nil {
@@ -541,6 +564,176 @@ func scanStringLiteral(scanner scanner) (scanner, string, error) {
 				Offset:  scanner.offset,
 				Message: "unexpected unterminated string literal",
 			}
+		}
+	}
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-NumericLiteral
+func scanNumericLiteral(scanner scanner) (scanner, float64, error) {
+	scanner, next := scanner.peek(1)
+	switch next {
+	case '0':
+		scanner, next := scanner.peek(2)
+
+		switch next {
+		case 'b', 'B':
+			return scanBinaryIntegerLiteral(scanner)
+
+		case 'o', 'O':
+			return scanOctalIntegerLiteral(scanner)
+
+		case 'x', 'X':
+			return scanHexIntegerLiteral(scanner)
+		}
+
+	case '.', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return scanDecimalLiteral(scanner)
+	}
+
+	return scanner, 0, SyntaxError{
+		Offset:  scanner.offset,
+		Message: "unexpected character",
+	}
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-DecimalLiteral
+func scanDecimalLiteral(scanner scanner) (scanner, float64, error) {
+	var (
+		base     int
+		fraction int
+		digits   int
+		exponent int
+		next     rune
+	)
+
+	for {
+		scanner, next = scanner.peek(1)
+
+		if runes.IsDigit(next) {
+			base = 10*base + runes.DecimalValue(next)
+			scanner = scanner.advance(1)
+		} else {
+			break
+		}
+	}
+
+	switch next {
+	case '.':
+		scanner = scanner.advance(1)
+
+		for {
+			scanner, next = scanner.peek(1)
+
+			if runes.IsDigit(next) {
+				fraction = 10*fraction + runes.DecimalValue(next)
+				digits++
+				scanner = scanner.advance(1)
+			} else {
+				break
+			}
+		}
+	default:
+		return scanner, float64(base), nil
+	}
+
+	switch next {
+	case 'e', 'E':
+		scanner, next = scanner.advance(1).peek(1)
+
+		sign := 1
+
+		switch next {
+		case '+':
+			scanner = scanner.advance(1)
+		case '-':
+			scanner, sign = scanner.advance(1), -1
+		}
+
+		for {
+			scanner, next = scanner.peek(1)
+
+			if runes.IsDigit(next) {
+				exponent = 10*exponent + runes.DecimalValue(next)
+				scanner = scanner.advance(1)
+			} else {
+				break
+			}
+		}
+
+		exponent *= sign
+	}
+
+	return scanner, (float64(base) + float64(fraction)*math.Pow(10, -float64(digits))) * math.Pow(10, float64(exponent)), nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-BinaryIntegerLiteral
+func scanBinaryIntegerLiteral(scanner scanner) (scanner, float64, error) {
+	scanner, next := scanner.advance(2).peek(1)
+
+	if runes.IsBinaryDigit(next) {
+		value := runes.BinaryValue(next)
+
+		for {
+			scanner, next = scanner.advance(1).peek(1)
+
+			if runes.IsBinaryDigit(next) {
+				value = 2*value + runes.BinaryValue(next)
+			} else {
+				return scanner, float64(value), nil
+			}
+		}
+	} else {
+		return scanner, 0, SyntaxError{
+			Offset:  scanner.offset,
+			Message: "expect binary digit",
+		}
+	}
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-OctalIntegerLiteral
+func scanOctalIntegerLiteral(scanner scanner) (scanner, float64, error) {
+	scanner, next := scanner.advance(2).peek(1)
+
+	if runes.IsOctalDigit(next) {
+		value := runes.OctalValue(next)
+
+		for {
+			scanner, next = scanner.advance(1).peek(1)
+
+			if runes.IsOctalDigit(next) {
+				value = 8*value + runes.OctalValue(next)
+			} else {
+				return scanner, float64(value), nil
+			}
+		}
+	} else {
+		return scanner, 0, SyntaxError{
+			Offset:  scanner.offset,
+			Message: "expect octal digit",
+		}
+	}
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-HexIntegerLiteral
+func scanHexIntegerLiteral(scanner scanner) (scanner, float64, error) {
+	scanner, next := scanner.advance(2).peek(1)
+
+	if runes.IsHexDigit(next) {
+		value := runes.HexValue(next)
+
+		for {
+			scanner, next = scanner.advance(1).peek(1)
+
+			if runes.IsHexDigit(next) {
+				value = 16*value + runes.HexValue(next)
+			} else {
+				return scanner, float64(value), nil
+			}
+		}
+	} else {
+		return scanner, 0, SyntaxError{
+			Offset:  scanner.offset,
+			Message: "expect octal digit",
 		}
 	}
 }

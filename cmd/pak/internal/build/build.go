@@ -27,14 +27,16 @@ func Command(cmd *cli.Command) {
 	flag := cmd.Flag()
 
 	var (
-		out  = *flag.String("o", "dist", "The directory to write files to")
-		root = *flag.String("root", "", "The root directory of entry files")
-		_    = *flag.String("vendor", "vendor", "The vendor directory of external files")
+		out  = flag.String("o", "dist", "The directory to write files to")
+		root = flag.String("root", "", "The root directory of entry files")
+		_    = flag.String("vendor", "vendor", "The vendor directory of external files")
 	)
 
 	cmd.Usage("[flags] [entry files]")
 
 	cmd.HandleFunc(func(filenames []string) {
+		root, out := *root, *out
+
 		var err error
 
 		if root == "" {

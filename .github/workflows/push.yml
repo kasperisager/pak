@@ -3,20 +3,26 @@ name: Integrate
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.14", "1.13"]
     name: Build
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/setup-go@v1
-      with:
-        go-version: 1.12.8
-    - run: go build ./...
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go build ./...
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.14", "1.13"]
     name: Test
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/setup-go@v1
-      with:
-        go-version: 1.12.8
-    - run: go test ./...
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v1
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go test ./...

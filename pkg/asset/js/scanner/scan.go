@@ -159,11 +159,16 @@ func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
 
 // https://www.ecma-international.org/ecma-262/#prod-UnicodeEscapeSequence
 func scanUnicodeEscapeSequence(scanner scanner) (scanner, rune, error) {
-	var next rune
+	var (
+		code int
+		next rune
+	)
 
 	if scanner, next = scanner.peek(1); next == 'u' {
-		if scanner, next = scanner.peek(2); next == '{' {
-			scanner, codePoint, err := scanCodePoint(scanner.advance(2))
+		scanner = scanner.advance(1)
+
+		if scanner, next = scanner.peek(1); next == '{' {
+			scanner, code, err := scanCodePoint(scanner.advance(1))
 
 			if err != nil {
 				return scanner, -1, err
@@ -178,11 +183,22 @@ func scanUnicodeEscapeSequence(scanner scanner) (scanner, rune, error) {
 				}
 			}
 
-			return scanner, codePoint, nil
-		} else {
-			for i := 0; i < 4; i++ {
+			return scanner.advance(1), code, nil
+		}
+
+		for i := 0; i < 4; i++ {
+			if scanner, next = scanner.peek(1); runes.IsHexDigit(next) {
+				code = 0x10*code + runes.HexValue(next)
+				scanner = scanner.advance(1)
+			} else {
+				return scanner, -1, SyntaxError{
+					Offset:  scanner.offset,
+					Message: "unexpected character, expected hex digit",
+				}
 			}
 		}
+
+		return scanner, rune(code), nil
 	}
 
 	return scanner, -1, SyntaxError{
@@ -193,16 +209,18 @@ func scanUnicodeEscapeSequence(scanner scanner) (scanner, rune, error) {
 
 // https://www.ecma-international.org/ecma-262/#prod-CodePoint
 func scanCodePoint(scanner scanner) (scanner, rune, error) {
-	var codePoint int
+	var (
+		code int
+		next rune
+	)
 
 	for {
-		var next rune
-
 		scanner, next = scanner.peek(1)
 
 		if runes.IsHexDigit(next) {
-			codePoint = 0x10*codePoint + runes.HexValue(next)
-		} else if codePoint <= 0x10ffff {
+			code = 0x10*code + runes.HexValue(next)
+			scanner = scanner.advance(1)
+		} else if code <= 0x10ffff {
 			break
 		} else {
 			return scanner, -1, SyntaxError{
@@ -212,7 +230,7 @@ func scanCodePoint(scanner scanner) (scanner, rune, error) {
 		}
 	}
 
-	return scanner, rune(codePoint), nil
+	return scanner, rune(code), nil
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-IdentifierName
@@ -677,7 +695,7 @@ func scanBinaryIntegerLiteral(scanner scanner) (scanner, float64, error) {
 			scanner, next = scanner.advance(1).peek(1)
 
 			if runes.IsBinaryDigit(next) {
-				value = 2*value + runes.BinaryValue(next)
+				value = 0b10*value + runes.BinaryValue(next)
 			} else {
 				return scanner, float64(value), nil
 			}
@@ -701,7 +719,7 @@ func scanOctalIntegerLiteral(scanner scanner) (scanner, float64, error) {
 			scanner, next = scanner.advance(1).peek(1)
 
 			if runes.IsOctalDigit(next) {
-				value = 8*value + runes.OctalValue(next)
+				value = 0o10*value + runes.OctalValue(next)
 			} else {
 				return scanner, float64(value), nil
 			}
@@ -725,7 +743,7 @@ func scanHexIntegerLiteral(scanner scanner) (scanner, float64, error) {
 			scanner, next = scanner.advance(1).peek(1)
 
 			if runes.IsHexDigit(next) {
-				value = 16*value + runes.HexValue(next)
+				value = 0x10*value + runes.HexValue(next)
 			} else {
 				return scanner, float64(value), nil
 			}

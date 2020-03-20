@@ -67,6 +67,18 @@ func TestScan(t *testing.T) {
 				token.Number{Offset: 0, Value: 1.23e-4},
 			},
 		},
+		{
+			`\u{66}\u{6f}\u{6f}`,
+			[]token.Token{
+				token.Identifier{Offset: 0, Value: "foo"},
+			},
+		},
+		{
+			`\u0066\u006f\u006f`,
+			[]token.Token{
+				token.Identifier{Offset: 0, Value: "foo"},
+			},
+		},
 	}
 
 	for _, test := range tests {

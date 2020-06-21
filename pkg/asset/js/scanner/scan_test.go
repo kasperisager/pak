@@ -79,6 +79,31 @@ func TestScan(t *testing.T) {
 				token.Identifier{Offset: 0, Value: "foo"},
 			},
 		},
+		{
+			`||`,
+			[]token.Token{
+				token.Punctuator{Offset: 0, Value: "||"},
+			},
+		},
+		{
+			`&&`,
+			[]token.Token{
+				token.Punctuator{Offset: 0, Value: "&&"},
+			},
+		},
+		{
+			`!`,
+			[]token.Token{
+				token.Punctuator{Offset: 0, Value: "!"},
+			},
+		},
+		{
+			`!foo`,
+			[]token.Token{
+				token.Punctuator{Offset: 0, Value: "!"},
+				token.Identifier{Offset: 1, Value: "foo"},
+			},
+		},
 	}
 
 	for _, test := range tests {

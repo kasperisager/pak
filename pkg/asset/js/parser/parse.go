@@ -370,79 +370,515 @@ func parseConditionalExpression(parser parser, parameters parameters) (parser, a
 // https://www.ecma-international.org/ecma-262/#prod-LogicalORExpression
 func parseLogicalOrExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseLogicalAndExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok && next.Value == "||" {
+			parser, right, ok, err := parseLogicalOrExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected logical OR expression",
+				}
+			}
+
+			logicalExpression := &ast.LogicalExpression{
+				Operator: "||",
+				Left:     left,
+				Right:    right,
+			}
+
+			return parser, logicalExpression, true, nil
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-LogicalANDExpression
 func parseLogicalAndExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseBitwiseOrExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok && next.Value == "&&" {
+			parser, right, ok, err := parseLogicalAndExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected logical AND expression",
+				}
+			}
+
+			logicalExpression := &ast.LogicalExpression{
+				Operator: "&&",
+				Left:     left,
+				Right:    right,
+			}
+
+			return parser, logicalExpression, true, nil
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-BitwiseORExpression
 func parseBitwiseOrExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseBitwiseXorExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok && next.Value == "|" {
+			parser, right, ok, err := parseBitwiseOrExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected bitwise OR expression",
+				}
+			}
+
+			binaryExpression := &ast.BinaryExpression{
+				Operator: "|",
+				Left:     left,
+				Right:    right,
+			}
+
+			return parser, binaryExpression, true, nil
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-BitwiseXORExpression
 func parseBitwiseXorExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseBitwiseAndExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok && next.Value == "^" {
+			parser, right, ok, err := parseBitwiseXorExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected bitwise XOR expression",
+				}
+			}
+
+			binaryExpression := &ast.BinaryExpression{
+				Operator: "^",
+				Left:     left,
+				Right:    right,
+			}
+
+			return parser, binaryExpression, true, nil
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-BitwiseANDExpression
 func parseBitwiseAndExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseEqualityExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok && next.Value == "&" {
+			parser, right, ok, err := parseBitwiseAndExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected bitwise AND expression",
+				}
+			}
+
+			binaryExpression := &ast.BinaryExpression{
+				Operator: "&",
+				Left:     left,
+				Right:    right,
+			}
+
+			return parser, binaryExpression, true, nil
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-EqualityExpression
 func parseEqualityExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseRelationalExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok {
+			switch next.Value {
+			case "==", "!=", "===", "!==":
+				parser, right, ok, err := parseEqualityExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected equality expression",
+					}
+				}
+
+				binaryExpression := &ast.BinaryExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
+				}
+
+				return parser, binaryExpression, true, nil
+			}
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-RelationalExpression
 func parseRelationalExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseShiftExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok {
+			switch next.Value {
+			case "<", ">", "<=", ">=":
+				parser, right, ok, err := parseRelationalExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected relational expression",
+					}
+				}
+
+				binaryExpression := &ast.BinaryExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
+				}
+
+				return parser, binaryExpression, true, nil
+			}
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-ShiftExpression
 func parseShiftExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseAdditiveExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok {
+			switch next.Value {
+			case "<<", ">>", ">>>":
+				parser, right, ok, err := parseShiftExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected shift expression",
+					}
+				}
+
+				binaryExpression := &ast.BinaryExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
+				}
+
+				return parser, binaryExpression, true, nil
+			}
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-AdditiveExpression
 func parseAdditiveExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseMultiplicativeExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok {
+			switch next.Value {
+			case "+", "-":
+				parser, right, ok, err := parseAdditiveExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected additive expression",
+					}
+				}
+
+				binaryExpression := &ast.BinaryExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
+				}
+
+				return parser, binaryExpression, true, nil
+			}
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-MultiplicativeExpression
 func parseMultiplicativeExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseExponentiationExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok {
+		parser, next := parser.peek(1)
+
+		if next, ok := next.(token.Punctuator); ok {
+			switch next.Value {
+			case "*", "/", "%":
+				parser, right, ok, err := parseExponentiationExpression(parser.advance(1), parameters)
+
+				if err != nil {
+					return parser, nil, false, err
+				}
+
+				if !ok {
+					return parser, nil, false, SyntaxError{
+						Offset:  parser.offset,
+						Message: "expected exponentiation expression",
+					}
+				}
+
+				binaryExpression := &ast.BinaryExpression{
+					Operator: next.Value,
+					Left:     left,
+					Right:    right,
+				}
+
+				return parser, binaryExpression, true, nil
+			}
+		}
+	}
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-ExponentiationExpression
 func parseExponentiationExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
 	parser, left, ok, err := parseUnaryExpression(parser, parameters)
+
 	return parser, left, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-UnaryExpression
 func parseUnaryExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
-	parser, left, ok, err := parseUpdateExpression(parser, parameters)
-	return parser, left, ok, err
+	parser, next := parser.peek(1)
+
+	var operator string
+
+	if next, ok := next.(token.Punctuator); ok {
+		operator = next.Value
+
+		switch operator {
+		case "+", "-":
+			parser, next := parser.peek(2)
+
+			if next, ok := next.(token.Punctuator); ok && next.Value == operator {
+				return parseUpdateExpression(parser, parameters)
+			}
+
+		case "~", "!":
+
+		default:
+			return parseUpdateExpression(parser, parameters)
+		}
+
+		parser = parser.advance(1)
+	}
+
+	if next, ok := next.(token.Keyword); ok {
+		operator = next.Value
+
+		switch operator {
+		case "delete", "void", "typeof":
+
+		default:
+			return parseUpdateExpression(parser, parameters)
+		}
+
+		parser = parser.advance(1)
+	}
+
+	parser, argument, ok, err := parseUpdateExpression(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if ok && operator != "" {
+		unaryExpression := &ast.UnaryExpression{
+			Operator: operator,
+			Prefix:   true,
+			Argument: argument,
+		}
+
+		return parser, unaryExpression, true, nil
+	}
+
+	return parser, argument, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-UpdateExpression
 func parseUpdateExpression(parser parser, parameters parameters) (parser, ast.Expression, bool, error) {
-	parser, left, ok, err := parseLeftHandSideExpression(parser, parameters)
-	return parser, left, ok, err
+	parser, next := parser.peek(1)
+
+	if next, ok := next.(token.Punctuator); ok {
+		operator := next.Value
+
+		switch operator {
+		case "++", "--":
+			parser, argument, ok, err := parseUnaryExpression(parser.advance(1), parameters)
+
+			if err != nil {
+				return parser, nil, false, err
+			}
+
+			if !ok {
+				return parser, nil, false, SyntaxError{
+					Offset:  parser.offset,
+					Message: "expected unary expression",
+				}
+			}
+
+			updateExpression := &ast.UpdateExpression{
+				Operator: operator,
+				Prefix:   true,
+				Argument: argument,
+			}
+
+			return parser, updateExpression, true, nil
+		}
+	}
+
+	parser, argument, ok, err := parseLeftHandSideExpression(parser, parameters)
+
+	parser, next = parser.peek(1)
+
+	if next, ok := next.(token.Punctuator); ok {
+		operator := next.Value
+
+		switch operator {
+		case "++", "--":
+			updateExpression := &ast.UpdateExpression{
+				Operator: operator,
+				Prefix:   false,
+				Argument: argument,
+			}
+
+			return parser.advance(1), updateExpression, true, nil
+		}
+	}
+
+	return parser, argument, ok, err
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-LeftHandSideExpression

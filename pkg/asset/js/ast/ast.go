@@ -619,6 +619,10 @@ func (e *RegExpLiteral) VisitExpression(v ExpressionVisitor)         { v.Literal
 func (e *SequenceExpression) VisitExpression(v ExpressionVisitor)    { v.SequenceExpression(e) }
 func (e *AssignmentExpression) VisitExpression(v ExpressionVisitor)  { v.AssignmentExpression(e) }
 func (e *ConditionalExpression) VisitExpression(v ExpressionVisitor) { v.ConditionalExpression(e) }
+func (e *LogicalExpression) VisitExpression(v ExpressionVisitor)     { v.LogicalExpression(e) }
+func (e *BinaryExpression) VisitExpression(v ExpressionVisitor)      { v.BinaryExpression(e) }
+func (e *UnaryExpression) VisitExpression(v ExpressionVisitor)       { v.UnaryExpression(e) }
+func (e *UpdateExpression) VisitExpression(v ExpressionVisitor)      { v.UpdateExpression(e) }
 
 func (l *StringLiteral) VisitLiteral(v LiteralVisitor)  { v.StringLiteral(l) }
 func (l *BooleanLiteral) VisitLiteral(v LiteralVisitor) { v.BooleanLiteral(l) }

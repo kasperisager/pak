@@ -70,6 +70,442 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			`foo || bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "||",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo && bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "&&",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo || bar || baz`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "||",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right: &ast.LogicalExpression{
+								Operator: "||",
+								Left:     &ast.Identifier{Name: "bar"},
+								Right:    &ast.Identifier{Name: "baz"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo && bar && baz`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "&&",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right: &ast.LogicalExpression{
+								Operator: "&&",
+								Left:     &ast.Identifier{Name: "bar"},
+								Right:    &ast.Identifier{Name: "baz"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo || bar && baz`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "||",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right: &ast.LogicalExpression{
+								Operator: "&&",
+								Left:     &ast.Identifier{Name: "bar"},
+								Right:    &ast.Identifier{Name: "baz"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo && bar || baz`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.LogicalExpression{
+							Operator: "||",
+							Left: &ast.LogicalExpression{
+								Operator: "&&",
+								Left:     &ast.Identifier{Name: "foo"},
+								Right:    &ast.Identifier{Name: "bar"},
+							},
+							Right: &ast.Identifier{Name: "baz"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo | bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "|",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo ^ bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "^",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo & bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "&",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo == bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "==",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo != bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "!=",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo === bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "===",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo !== bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "!==",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo < bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "<",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo > bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: ">",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo <= bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "<=",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo >= bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: ">=",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo << bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "<<",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo >> bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: ">>",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo >>> bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: ">>>",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo + bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "+",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo - bar`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.BinaryExpression{
+							Operator: "-",
+							Left:     &ast.Identifier{Name: "foo"},
+							Right:    &ast.Identifier{Name: "bar"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`+foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UnaryExpression{
+							Operator: "+",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`-foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UnaryExpression{
+							Operator: "-",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`~foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UnaryExpression{
+							Operator: "~",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`!foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UnaryExpression{
+							Operator: "!",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`++foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UpdateExpression{
+							Operator: "++",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`--foo`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UpdateExpression{
+							Operator: "--",
+							Prefix:   true,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo++`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UpdateExpression{
+							Operator: "++",
+							Prefix:   false,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
+		{
+			`foo--`,
+			&ast.Program{
+				Body: []ast.ProgramBody{
+					&ast.ExpressionStatement{
+						Expression: &ast.UpdateExpression{
+							Operator: "--",
+							Prefix:   false,
+							Argument: &ast.Identifier{Name: "foo"},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

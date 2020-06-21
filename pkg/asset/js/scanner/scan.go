@@ -68,6 +68,7 @@ func (s scanner) peek(n int) (scanner, rune) {
 
 func (s scanner) advance(n int) scanner {
 	if len(s.runes) >= n {
+		s.offset += n
 		s.runes = s.runes[n:]
 	}
 
@@ -103,7 +104,7 @@ func scanToken(scanner scanner, options Options) (scanner, token.Token, error) {
 
 		fallthrough
 
-	case '{', '(', ')', '[', ']', ';', ',', '~', '?', ':', '=', '*', '^':
+	case '{', '}', '(', ')', '[', ']', ';', ',', '~', '?', ':', '=', '*', '^', '|', '/', '%', '+', '-', '&', '<', '>', '!':
 		scanner, value, err := scanPunctuator(scanner, options)
 
 		if err != nil {
@@ -530,6 +531,23 @@ func scanPunctuator(scanner scanner, options Options) (scanner, string, error) {
 				case '=':
 					return scanner.advance(4), ">>>=", nil
 				}
+			}
+		}
+
+	case '!':
+		scanner, next = scanner.peek(2)
+
+		switch next {
+		default:
+			return scanner.advance(1), "!", nil
+		case '=':
+			scanner, next = scanner.peek(3)
+
+			switch next {
+			default:
+				return scanner.advance(2), "!=", nil
+			case '=':
+				return scanner.advance(3), "!==", nil
 			}
 		}
 	}

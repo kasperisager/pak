@@ -52,7 +52,7 @@ func TestParse(t *testing.T) {
 				Root: &ast.Element{
 					Name: "html",
 					Attributes: []*ast.Attribute{
-						&ast.Attribute{Name: "class", Value: "foo"},
+						{Name: "class", Value: "foo"},
 					},
 					Children: []ast.Node{
 						&ast.Element{Name: "head"},
@@ -122,7 +122,7 @@ func TestParse(t *testing.T) {
 						&ast.Element{
 							Name: "head",
 							Attributes: []*ast.Attribute{
-								&ast.Attribute{Name: "class", Value: "foo"},
+								{Name: "class", Value: "foo"},
 							},
 						},
 						&ast.Element{Name: "body"},
@@ -179,8 +179,8 @@ func TestParse(t *testing.T) {
 								&ast.Element{
 									Name: "link",
 									Attributes: []*ast.Attribute{
-										&ast.Attribute{Name: "rel", Value: "stylesheet"},
-										&ast.Attribute{Name: "href", Value: "foo.css"},
+										{Name: "rel", Value: "stylesheet"},
+										{Name: "href", Value: "foo.css"},
 									},
 								},
 							},
@@ -251,7 +251,7 @@ func TestParse(t *testing.T) {
 						&ast.Element{
 							Name: "body",
 							Attributes: []*ast.Attribute{
-								&ast.Attribute{Name: "class", Value: "foo"},
+								{Name: "class", Value: "foo"},
 							},
 						},
 					},

@@ -273,7 +273,7 @@ func TestParse(t *testing.T) {
 					&ast.ImportRule{
 						URL: &url.URL{Path: "foo"},
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{Type: "screen"},
+							{Type: "screen"},
 						},
 					},
 				},
@@ -285,7 +285,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{Type: "screen"},
+							{Type: "screen"},
 						},
 						StyleSheet: &ast.StyleSheet{},
 					},
@@ -298,7 +298,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{Type: "screen", Qualifier: "only"},
+							{Type: "screen", Qualifier: "only"},
 						},
 						StyleSheet: &ast.StyleSheet{},
 					},
@@ -311,8 +311,8 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{Type: "screen"},
-							&ast.MediaQuery{Type: "print"},
+							{Type: "screen"},
+							{Type: "print"},
 						},
 						StyleSheet: &ast.StyleSheet{},
 					},
@@ -325,7 +325,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{
+							{
 								Condition: &ast.MediaFeature{
 									Name: "foo",
 									Value: &ast.MediaValuePlain{Value: token.Ident{
@@ -346,7 +346,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{
+							{
 								Condition: &ast.MediaOperation{
 									Operator: "and",
 									Left: &ast.MediaFeature{
@@ -377,7 +377,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.MediaRule{
 						Conditions: []*ast.MediaQuery{
-							&ast.MediaQuery{
+							{
 								Condition: &ast.MediaOperation{
 									Operator: "and",
 									Left: &ast.MediaFeature{
@@ -451,8 +451,8 @@ func TestParse(t *testing.T) {
 					&ast.KeyframesRule{
 						Name: "foo",
 						Blocks: []*ast.KeyframeBlock{
-							&ast.KeyframeBlock{Selector: 0},
-							&ast.KeyframeBlock{Selector: 1},
+							{Selector: 0},
+							{Selector: 1},
 						},
 					},
 				},
@@ -490,7 +490,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.PageRule{
 						Selectors: []*ast.PageSelector{
-							&ast.PageSelector{
+							{
 								Type: "foo",
 							},
 						},
@@ -504,7 +504,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.PageRule{
 						Selectors: []*ast.PageSelector{
-							&ast.PageSelector{
+							{
 								Type:    "foo",
 								Classes: []string{":left"},
 							},
@@ -519,7 +519,7 @@ func TestParse(t *testing.T) {
 				Rules: []ast.Rule{
 					&ast.PageRule{
 						Selectors: []*ast.PageSelector{
-							&ast.PageSelector{
+							{
 								Type:    "foo",
 								Classes: []string{":left"},
 							},

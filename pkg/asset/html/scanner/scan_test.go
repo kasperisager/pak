@@ -42,7 +42,7 @@ func TestScan(t *testing.T) {
 			`<foo bar>`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo", Attributes: []token.Attribute{
-					token.Attribute{Offset: 5, Name: "bar"},
+					{Offset: 5, Name: "bar"},
 				}},
 			},
 		},
@@ -50,7 +50,7 @@ func TestScan(t *testing.T) {
 			`<foo bar=baz>`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo", Attributes: []token.Attribute{
-					token.Attribute{Offset: 5, Name: "bar", Value: "baz"},
+					{Offset: 5, Name: "bar", Value: "baz"},
 				}},
 			},
 		},
@@ -58,7 +58,7 @@ func TestScan(t *testing.T) {
 			`<foo bar="baz">`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo", Attributes: []token.Attribute{
-					token.Attribute{Offset: 5, Name: "bar", Value: "baz"},
+					{Offset: 5, Name: "bar", Value: "baz"},
 				}},
 			},
 		},
@@ -66,8 +66,8 @@ func TestScan(t *testing.T) {
 			`<foo bar baz>`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo", Attributes: []token.Attribute{
-					token.Attribute{Offset: 5, Name: "bar"},
-					token.Attribute{Offset: 9, Name: "baz"},
+					{Offset: 5, Name: "bar"},
+					{Offset: 9, Name: "baz"},
 				}},
 			},
 		},
@@ -75,8 +75,8 @@ func TestScan(t *testing.T) {
 			`<foo bar=baz qux>`,
 			[]token.Token{
 				token.StartTag{Offset: 0, Name: "foo", Attributes: []token.Attribute{
-					token.Attribute{Offset: 5, Name: "bar", Value: "baz"},
-					token.Attribute{Offset: 13, Name: "qux"},
+					{Offset: 5, Name: "bar", Value: "baz"},
+					{Offset: 13, Name: "qux"},
 				}},
 			},
 		},

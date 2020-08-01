@@ -28,7 +28,7 @@ func (g *Graph) Size() int {
 func (g *Graph) Assets() []Asset {
 	assets := make([]Asset, 0, len(g.nodes))
 
-	for asset, _ := range g.nodes {
+	for asset := range g.nodes {
 		assets = append(assets, asset)
 	}
 
@@ -106,7 +106,7 @@ func (g *Graph) Relation(from Asset, to Asset) (Relation, bool) {
 func (g *Graph) Roots() []Asset {
 	roots := make([]Asset, 0)
 
-	for asset, _ := range g.nodes {
+	for asset := range g.nodes {
 		indegree, _ := g.Indegree(asset)
 
 		if indegree == 0 {
@@ -120,7 +120,7 @@ func (g *Graph) Roots() []Asset {
 func (g *Graph) Leaves() []Asset {
 	leaves := make([]Asset, 0)
 
-	for asset, _ := range g.nodes {
+	for asset := range g.nodes {
 		outdegree, _ := g.Outdegree(asset)
 
 		if outdegree == 0 {

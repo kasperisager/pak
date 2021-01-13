@@ -25,7 +25,7 @@ type (
 const MediaType = "application/javascript"
 
 func From(url *url.URL, data []byte, flags asset.Flags) (*Asset, error) {
-	program, err := parser.Parse(bytes.Runes(data))
+	program, err := parser.Parse(bytes.Runes(data), ast.Module)
 
 	if err != nil {
 		return nil, err

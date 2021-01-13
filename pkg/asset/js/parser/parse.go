@@ -15,7 +15,7 @@ func (err SyntaxError) Error() string {
 	return err.Message
 }
 
-func Parse(runes []rune) (*ast.Program, error) {
+func Parse(runes []rune, sourceType ast.SourceType) (*ast.Program, error) {
 	parameters := parameters{
 		In:     true,
 		Yield:  false,
@@ -26,29 +26,25 @@ func Parse(runes []rune) (*ast.Program, error) {
 
 	parser := parser{0, runes, nil}
 
-	program := &ast.Program{}
-
-	for {
-		var (
-			statement ast.Statement
-			ok        bool
-			err       error
-		)
-
-		parser, statement, ok, err = parseStatement(parser, parameters)
+	switch sourceType {
+	case ast.Script:
+		_, program, _, err := parseScript(parser, parameters)
 
 		if err != nil {
-			return program, err
+			return nil, err
 		}
 
-		if ok {
-			program.Body = append(program.Body, statement)
-		} else {
-			break
+		return program, nil
+
+	default:
+		_, program, _, err := parseModule(parser, parameters)
+
+		if err != nil {
+			return nil, err
 		}
+
+		return program, nil
 	}
-
-	return program, nil
 }
 
 type (
@@ -116,6 +112,172 @@ func (p parser) advance(n int, options ...func(*scanner.Options)) parser {
 	}
 
 	return p
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-Script
+func parseScript(parser parser, parameters parameters) (parser, *ast.Program, bool, error) {
+	parser, body, _, err := parseScriptBody(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	program := &ast.Program{
+		SourceType: ast.Script,
+		Body:       body,
+	}
+
+	return parser, program, true, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ScriptBody
+func parseScriptBody(parser parser, parameters parameters) (parser, []ast.ProgramBody, bool, error) {
+	var body []ast.ProgramBody
+
+	parser, statements, ok, err := parseStatementList(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if !ok {
+		return parser, nil, false, nil
+	}
+
+	for _, statement := range statements {
+		body = append(body, statement)
+	}
+
+	return parser, body, true, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-Module
+func parseModule(parser parser, parameters parameters) (parser, *ast.Program, bool, error) {
+	parser, body, _, err := parseModuleBody(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	program := &ast.Program{
+		SourceType: ast.Module,
+		Body:       body,
+	}
+
+	return parser, program, true, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ModuleBody
+func parseModuleBody(parser parser, parameters parameters) (parser, []ast.ProgramBody, bool, error) {
+	var body []ast.ProgramBody
+
+	parser, items, ok, err := parseModuleItemList(parser, parameters)
+
+	if err != nil {
+		return parser, nil, false, err
+	}
+
+	if !ok {
+		return parser, nil, false, nil
+	}
+
+	for _, item := range items {
+		body = append(body, item)
+	}
+
+	return parser, body, true, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ModuleItemList
+func parseModuleItemList(parser parser, parameters parameters) (parser, []ast.ProgramBody, bool, error) {
+	var items []ast.ProgramBody
+
+	for {
+		var (
+			item ast.ProgramBody
+			ok   bool
+			err  error
+		)
+
+		parser, item, ok, err = parseModuleItem(parser, parameters)
+
+		if err != nil {
+			return parser, nil, false, err
+		}
+
+		if ok {
+			items = append(items, item)
+		} else {
+			break
+		}
+	}
+
+	return parser, items, items != nil, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ModuleItem
+func parseModuleItem(parser parser, parameters parameters) (parser, ast.ProgramBody, bool, error) {
+	parser, next := parser.peek(1)
+
+	switch next := next.(type) {
+	case token.Keyword:
+		switch next.Value {
+		case "import":
+			return parseImportDeclaration(parser, parameters)
+		case "export":
+			return parseExportDeclaration(parser, parameters)
+		}
+	}
+
+	return parseStatement(parser, parameters)
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ImportDeclaration
+func parseImportDeclaration(parser parser, parameters parameters) (parser, ast.ModuleDeclaration, bool, error) {
+	parser, next := parser.peek(2)
+
+	switch next := next.(type) {
+	case token.String:
+		importDeclaration := &ast.ImportDeclaration{
+			Source: &ast.StringLiteral{Value: next.Value},
+		}
+
+		return parser.advance(2), importDeclaration, true, nil
+	}
+
+	return parser, nil, false, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-ExportDeclaration
+func parseExportDeclaration(parser parser, parameters parameters) (parser, ast.ModuleDeclaration, bool, error) {
+	return parser, nil, false, nil
+}
+
+// https://www.ecma-international.org/ecma-262/#prod-StatementList
+func parseStatementList(parser parser, parameters parameters) (parser, []ast.Statement, bool, error) {
+	var statements []ast.Statement
+
+	for {
+		var (
+			statement ast.Statement
+			ok        bool
+			err       error
+		)
+
+		parser, statement, ok, err = parseStatement(parser, parameters)
+
+		if err != nil {
+			return parser, nil, false, err
+		}
+
+		if ok {
+			statements = append(statements, statement)
+		} else {
+			break
+		}
+	}
+
+	return parser, statements, statements != nil, nil
 }
 
 // https://www.ecma-international.org/ecma-262/#prod-Statement

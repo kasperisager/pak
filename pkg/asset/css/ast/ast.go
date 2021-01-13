@@ -244,8 +244,10 @@ func (m *MediaFeature) VisitMediaCondition(v MediaConditionVisitor)   { v.MediaF
 
 func (m *MediaValuePlain) VisitMediaValue(v MediaValueVisitor) { v.MediaValuePlain(m) }
 
-func (s *SupportsOperation) VisitSupportsCondition(v SupportsConditionVisitor) { v.SupportsOperation(s) }
-func (s *SupportsNegation) VisitSupportsCondition(v SupportsConditionVisitor)  { v.SupportsNegation(s) }
-func (s *SupportsFeature) VisitSupportsCondition(v SupportsConditionVisitor)   { v.SupportsFeature(s) }
+func (s *SupportsOperation) VisitSupportsCondition(v SupportsConditionVisitor) {
+	v.SupportsOperation(s)
+}
+func (s *SupportsNegation) VisitSupportsCondition(v SupportsConditionVisitor) { v.SupportsNegation(s) }
+func (s *SupportsFeature) VisitSupportsCondition(v SupportsConditionVisitor)  { v.SupportsFeature(s) }
 
 func (p *PageDeclaration) VisitPageComponent(v PageComponentVisitor) { v.PageDeclaration(p) }

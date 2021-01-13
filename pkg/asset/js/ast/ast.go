@@ -2,8 +2,10 @@
 package ast
 
 type (
+	SourceType string
+
 	Program struct {
-		SourceType string
+		SourceType SourceType
 		Body       []ProgramBody
 	}
 
@@ -522,6 +524,7 @@ type (
 	}
 
 	ModuleDeclaration interface {
+		ProgramBody
 		VisitModuleDeclaration(ModuleDeclarationVisitor)
 	}
 
@@ -603,6 +606,11 @@ type (
 	}
 )
 
+const (
+	Script SourceType = "script"
+	Module SourceType = "module"
+)
+
 func (p *ExpressionStatement) VisitProgramBody(v ProgramBodyVisitor) { v.Statement(p) }
 func (p *BlockStatement) VisitProgramBody(v ProgramBodyVisitor)      { v.Statement(p) }
 func (p *ImportDeclaration) VisitProgramBody(v ProgramBodyVisitor)   { v.ModuleDeclaration(p) }
@@ -630,7 +638,9 @@ func (l *NullLiteral) VisitLiteral(v LiteralVisitor)    { v.NullLiteral(l) }
 func (l *NumberLiteral) VisitLiteral(v LiteralVisitor)  { v.NumberLiteral(l) }
 func (l *RegExpLiteral) VisitLiteral(v LiteralVisitor)  { v.RegExpLiteral(l) }
 
-func (m *ImportDeclaration) VisitModuleDeclaration(v ModuleDeclarationVisitor) { v.ImportDeclaration(m) }
+func (m *ImportDeclaration) VisitModuleDeclaration(v ModuleDeclarationVisitor) {
+	v.ImportDeclaration(m)
+}
 
 func (i *ImportSpecifier) VisitImportDeclarationSpecifier(v ImportDeclarationSpecifierVisitor) {
 	v.ImportSpecifier(i)

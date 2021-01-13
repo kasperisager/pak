@@ -16,6 +16,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo = "bar"`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.AssignmentExpression{
@@ -30,6 +31,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo, bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.SequenceExpression{
@@ -45,6 +47,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo *= "bar"`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.AssignmentExpression{
@@ -59,6 +62,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo ? bar : baz`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.ConditionalExpression{
@@ -73,6 +77,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo || bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -87,6 +92,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo && bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -101,6 +107,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo || bar || baz`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -119,6 +126,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo && bar && baz`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -137,6 +145,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo || bar && baz`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -155,6 +164,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo && bar || baz`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.LogicalExpression{
@@ -173,6 +183,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo | bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -187,6 +198,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo ^ bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -201,6 +213,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo & bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -215,6 +228,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo == bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -229,6 +243,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo != bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -243,6 +258,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo === bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -257,6 +273,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo !== bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -271,6 +288,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo < bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -285,6 +303,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo > bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -299,6 +318,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo <= bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -313,6 +333,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo >= bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -327,6 +348,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo << bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -341,6 +363,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo >> bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -355,6 +378,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo >>> bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -369,6 +393,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo + bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -383,6 +408,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo - bar`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.BinaryExpression{
@@ -397,6 +423,7 @@ func TestParse(t *testing.T) {
 		{
 			`+foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UnaryExpression{
@@ -411,6 +438,7 @@ func TestParse(t *testing.T) {
 		{
 			`-foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UnaryExpression{
@@ -425,6 +453,7 @@ func TestParse(t *testing.T) {
 		{
 			`~foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UnaryExpression{
@@ -439,6 +468,7 @@ func TestParse(t *testing.T) {
 		{
 			`!foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UnaryExpression{
@@ -453,6 +483,7 @@ func TestParse(t *testing.T) {
 		{
 			`++foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UpdateExpression{
@@ -467,6 +498,7 @@ func TestParse(t *testing.T) {
 		{
 			`--foo`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UpdateExpression{
@@ -481,6 +513,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo++`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UpdateExpression{
@@ -495,6 +528,7 @@ func TestParse(t *testing.T) {
 		{
 			`foo--`,
 			&ast.Program{
+				SourceType: ast.Script,
 				Body: []ast.ProgramBody{
 					&ast.ExpressionStatement{
 						Expression: &ast.UpdateExpression{
@@ -506,10 +540,21 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		{
+			`import "foo"`,
+			&ast.Program{
+				SourceType: ast.Module,
+				Body: []ast.ProgramBody{
+					&ast.ImportDeclaration{
+						Source: &ast.StringLiteral{Value: "foo"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		program, err := Parse([]rune(test.input))
+		program, err := Parse([]rune(test.input), test.program.SourceType)
 		assert.Nil(t, err, test.input)
 
 		assert.Equal(t, test.program, program, test.input)
